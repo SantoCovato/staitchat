@@ -12,10 +12,19 @@ peer.on('open', (id) => {
     renderListaContatti();
 });
 
-// Ricezione connessioni in entrata
+// Ricezione: quando qualcuno ti chiama, lo aggiungi ai contatti e apri la chat
 peer.on('connection', (conn) => {
+    salvaContatto(conn.peer);
     setupConnessione(conn);
 });
+
+function salvaContatto(id) {
+    if (!contatti.includes(id)) {
+        contatti.push(id);
+        localStorage.setItem('contatti', JSON.stringify(contatti));
+        renderListaContatti();
+    }
+}
 
 function setupConnessione(conn) {
     connessioni[conn.peer] = conn;
@@ -26,11 +35,9 @@ function setupConnessione(conn) {
 
 function aggiungiContatto() {
     const id = document.getElementById('target-id').value;
-    if (id && !contatti.includes(id)) {
-        contatti.push(id);
-        localStorage.setItem('contatti', JSON.stringify(contatti));
-        renderListaContatti();
-    }
+    if (!id) return;
+    salvaContatto(id);
+    apriChat(id); // Si connette e apre la chat immediatamente
 }
 
 function renderListaContatti() {
@@ -45,7 +52,7 @@ function apriChat(id) {
     chatAttiva = id;
     document.getElementById('chat-title').innerText = "Chat con: " + id;
     
-    // Se non abbiamo una connessione attiva, creiamola
+    // Connessione automatica se non esiste
     if (!connessioni[id]) {
         let conn = peer.connect(id, { reliable: true });
         setupConnessione(conn);
@@ -74,10 +81,6 @@ function invia() {
         salvaEVisualizza(chatAttiva, "Io: " + testo, 'io');
         input.value = "";
     } else {
-        alert("Connessione non pronta. Riprova tra un secondo.");
+        alert("Aspetta un secondo che la connessione si stabilizzi...");
     }
 }
-
-document.getElementById("msg-input").addEventListener("keypress", (e) => {
-    if (e.key === "Enter") invia();
-});
