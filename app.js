@@ -1,5 +1,11 @@
-// Inizializzazione pulita
-const peer = new Peer(); 
+// Configurazione minimale per forzare la connessione
+const peer = new Peer(undefined, {
+    host: 'peerjs.live',
+    port: 443,
+    secure: true,
+    debug: 3
+});
+
 let conn = null;
 
 // Quando il nodo è pronto
@@ -7,27 +13,25 @@ peer.on('open', (id) => {
     document.getElementById('my-id').innerText = "IL TUO ID: " + id;
 });
 
-// Gestione errori di rete
+// Gestione errori
 peer.on('error', (err) => {
+    document.getElementById('my-id').innerText = "ERRORE: " + err.type;
     console.error(err);
-    document.getElementById('my-id').innerText = "ERRORE RETE: " + err.type;
 });
 
-// Quando qualcuno si connette a noi
+// Ricezione connessione
 peer.on('connection', (c) => {
     conn = c;
-    setupConnessione();
+    gestisciConnessione();
 });
 
-// Connessione manuale verso un ID
 function connetti() {
     const target = document.getElementById('target-id').value;
     conn = peer.connect(target);
-    setupConnessione();
+    gestisciConnessione();
 }
 
-// Configura i listener per messaggi e stato
-function setupConnessione() {
+function gestisciConnessione() {
     conn.on('open', () => {
         document.getElementById('status').innerText = "Stato: Connesso!";
     });
