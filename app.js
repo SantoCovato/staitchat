@@ -1,4 +1,13 @@
-let peer = new Peer(); // Genera ID casuale in automatico
+// Forza la connessione esplicita al server cloud di PeerJS
+const peer = new Peer(undefined, {
+    host: '0.peerjs.com',
+    port: 443,
+    path: '/',
+    secure: true,
+    key: 'peerjs',
+    debug: 3
+});
+
 let conn = null;
 
 // Quando il nodo è pronto
