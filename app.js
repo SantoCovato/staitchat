@@ -8,14 +8,13 @@ let tentativoConnessioneInterval = null;
 let coppiaChiaviStait = null;
 let miaChiavePubblicaEsadecimale = "";
 
-// SOLO STUN pubblici base per mappare l'IP locale. NESSUN server TURN.
+// SOLO STUN di Google. Nessun server TURN esterno che tocca i tuoi dati.
 const configurazioneIceWebRTC = {
     'iceServers': [
         { 'urls': 'stun:stun.l.google.com:19302' },
         { 'urls': 'stun:stun1.l.google.com:19302' },
         { 'urls': 'stun:stun2.l.google.com:19302' }
-    ],
-    'iceTransportPolicy': 'all'
+    ]
 };
 
 // Elementi Dom
@@ -93,7 +92,7 @@ function inizializzaReteP2P(peerId) {
         correctLevel : QRCode.CorrectLevel.M
     });
 
-    logStatoSistema("Protocollo P2P Puro attivo. In attesa...");
+    logStatoSistema("Protocollo P2P Puro online. Pronto.");
 
     peer = new Peer(peerId, {
         config: configurazioneIceWebRTC,
@@ -101,10 +100,11 @@ function inizializzaReteP2P(peerId) {
     });
 
     peer.on('open', () => {
-        logStatoSistema("Nodo locale online. Pronto.");
+        logStatoSistema("Dispositivo registrato sulla rete mesh.");
     });
 
     peer.on('error', async (err) => {
+        console.log("PeerJS Error:", err.type);
         if (err.type === 'unavailable-id' || err.type === 'id-taken') {
             miaChiavePubblicaEsadecimale = await generatIDCasualeAlternativo();
             localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
@@ -112,16 +112,15 @@ function inizializzaReteP2P(peerId) {
         }
     });
 
-    // Quando arriva una richiesta, agganciamo i flussi e rispondiamo al fuoco
     peer.on('connection', (conn) => {
         gestisciConnessioneEntrante(conn);
     });
 }
 
 function gestisciConnessioneEntrante(conn) {
-    if (activeConnection && activeConnection.open && activePeerId === conn.peer) return;
+    if (activeConnection && activeConnection.open) return;
 
-    logStatoSistema(`Richiesta rilevata da ${conn.peer.substring(0,8).toUpperCase()}. Risposta forzata con Hole Punching bilaterale...`);
+    logStatoSistema(`Aggancio ricevuto da ${conn.peer.substring(0,8).toUpperCase()}. Apertura canale...`);
     
     activeConnection = conn;
     activePeerId = conn.peer;
@@ -130,7 +129,7 @@ function gestisciConnessioneEntrante(conn) {
         clearInterval(tentativoConnessioneInterval);
         aggiungiPeerAInterfaccia(activePeerId);
         selezionaPeerChat(activePeerId);
-        logStatoSistema(`[OK] Tunnel P2P sincronizzato e aperto in modo bidirezionale.`);
+        logStatoSistema(`[OK] Connessione P2P stabilita con successo.`);
     });
 
     activeConnection.on('data', (data) => {
@@ -138,35 +137,9 @@ function gestisciConnessioneEntrante(conn) {
     });
 
     activeConnection.on('close', () => {
-        logStatoSistema(`Canale chiuso dal peer.`);
+        logStatoSistema(`Il peer ha chiuso il canale.`);
         impostaPeerOffline();
     });
-
-    // Mossa chiave: Il PC ha ricevuto il segnale, quindi lancia subito a sua volta 
-    // un ciclo di connessione verso il telefono per forzare l'apertura del firewall lato PC.
-    forzaHolePunchingSpeculare(conn.peer);
-}
-
-function forzaHolePunchingSpeculare(targetId) {
-    if (tentativoConnessioneInterval) return; // Evita loop multipli sovrapposti
-
-    tentativoConnessioneInterval = setInterval(() => {
-        if (activeConnection && activeConnection.open) {
-            clearInterval(tentativoConnessioneInterval);
-            return;
-        }
-        console.log("Hole punching speculare di risposta verso:", targetId);
-        let connRiconnessione = peer.connect(targetId, { reliable: true, connectionTimeout: 2000 });
-        
-        connRiconnessione.on('open', () => {
-            clearInterval(tentativoConnessioneInterval);
-            activeConnection = connRiconnessione;
-            activePeerId = targetId;
-            aggiungiPeerAInterfaccia(activePeerId);
-            selezionaPeerChat(activePeerId);
-            logStatoSistema(`[OK] Tunnel sbloccato tramite risposta speculare.`);
-        });
-    }, 2500);
 }
 
 function connettiAPeer() {
@@ -177,19 +150,15 @@ function connettiAPeer() {
     if (targetId === miaChiavePubblicaEsadecimale) return alert("Non puoi connetterti a te stesso.");
 
     clearInterval(tentativoConnessioneInterval);
-    logStatoSistema(`Martellamento firewall avviato verso il peer target...`);
+    logStatoSistema(`Apertura socket verso il peer target...`);
 
-    const eseguiTentativoP2P = () => {
+    const tentaAggancioP2P = () => {
         if (activeConnection && activeConnection.open) {
             clearInterval(tentativoConnessioneInterval);
             return;
         }
 
-        console.log("Tentativo di punch in uscita verso:", targetId);
-        const conn = peer.connect(targetId, {
-            reliable: true,
-            connectionTimeout: 2000 
-        });
+        const conn = peer.connect(targetId, { reliable: true });
 
         conn.on('open', () => {
             clearInterval(tentativoConnessioneInterval);
@@ -198,7 +167,7 @@ function connettiAPeer() {
 
             aggiungiPeerAInterfaccia(activePeerId);
             selezionaPeerChat(activePeerId);
-            logStatoSistema(`[OK] Connessione P2P Diretta stabilita con successo.`);
+            logStatoSistema(`[OK] Tunnel diretto aperto.`);
             inputField.value = ""; 
         });
 
@@ -211,8 +180,9 @@ function connettiAPeer() {
         });
     };
 
-    eseguiTentativoP2P();
-    tentativoConnessioneInterval = setInterval(eseguiTentativoP2P, 2500);
+    tentaAggancioP2P();
+    // Intervallo più lungo (6 secondi) per dare tempo alle sessioni ICE di stabilizzarsi senza intasare la rete
+    tentativoConnessioneInterval = setInterval(tentaAggancioP2P, 6000);
 }
 
 async function inviaMessaggioReale() {
@@ -271,7 +241,7 @@ function selezionaPeerChat(peerId) {
     }
 
     chatWithTitle.innerText = "Peer_" + peerId.substring(0, 12).toUpperCase() + "...";
-    chatStatusText.innerText = "Canale P2P Puro e Diretto";
+    chatStatusText.innerText = "Canale P2P Puro";
     chatStatusText.style.color = "var(--neon-blue)";
 
     messageInput.disabled = false;
