@@ -12,12 +12,20 @@ peer.on('open', (id) => {
     renderListaContatti();
 });
 
-function togglePanel(id) {
-    const p = document.getElementById(id);
-    p.style.display = (p.style.display === 'none') ? 'block' : 'none';
-    if(id === 'qr-panel' && p.style.display === 'block' && document.getElementById('qrcode').innerHTML === "") {
+function toggleMenu() { document.getElementById('fab-menu').classList.toggle('hidden'); }
+
+function mostraQR() {
+    toggleMenu();
+    document.getElementById('qr-modal').classList.remove('hidden');
+    if(document.getElementById('qrcode').innerHTML === "") {
         new QRCode(document.getElementById("qrcode"), { text: mioID, width: 150, height: 150 });
     }
+}
+
+function promptAggiungi() {
+    toggleMenu();
+    const id = prompt("Inserisci l'ID dell'amico:");
+    if (id) { salvaContatto(id); apriChat(id); }
 }
 
 peer.on('connection', (conn) => {
@@ -35,17 +43,7 @@ function salvaContatto(id) {
 
 function setupConnessione(conn) {
     connessioni[conn.peer] = conn;
-    conn.on('data', (data) => {
-        salvaEVisualizza(conn.peer, data, 'lui');
-    });
-}
-
-function aggiungiContatto() {
-    const id = document.getElementById('target-id').value;
-    if (!id) return;
-    salvaContatto(id);
-    togglePanel('add-panel');
-    apriChat(id);
+    conn.on('data', (data) => { salvaEVisualizza(conn.peer, data, 'lui'); });
 }
 
 function renderListaContatti() {
@@ -60,15 +58,9 @@ function apriChat(id) {
     chatAttiva = id;
     document.getElementById('chat-title').innerText = id;
     document.getElementById('chat-area').classList.add('active');
-    
-    if (!connessioni[id]) {
-        let conn = peer.connect(id, { reliable: true });
-        setupConnessione(conn);
-    }
-    
-    const msgs = messaggi[id] || [];
+    if (!connessioni[id]) { setupConnessione(peer.connect(id, { reliable: true })); }
     const container = document.getElementById('messages');
-    container.innerHTML = msgs.map(m => `<div class="msg ${m.tipo}">${m.testo}</div>`).join('');
+    container.innerHTML = (messaggi[id] || []).map(m => `<div class="msg ${m.tipo}">${m.testo}</div>`).join('');
     container.scrollTop = container.scrollHeight;
 }
 
@@ -85,14 +77,11 @@ function salvaEVisualizza(id, testo, tipo) {
 }
 
 function invia() {
-    if (!chatAttiva) return alert("Seleziona una chat!");
     const input = document.getElementById('msg-input');
-    const testo = input.value;
-    if (connessioni[chatAttiva] && connessioni[chatAttiva].open) {
-        connessioni[chatAttiva].send(testo);
-        salvaEVisualizza(chatAttiva, testo, 'io');
-        input.value = "";
-    }
+    if (!chatAttiva || !input.value) return;
+    connessioni[chatAttiva].send(input.value);
+    salvaEVisualizza(chatAttiva, input.value, 'io');
+    input.value = "";
 }
 
 document.getElementById("msg-input").addEventListener("keypress", (e) => { if (e.key === "Enter") invia(); });
