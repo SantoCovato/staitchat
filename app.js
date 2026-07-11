@@ -18,15 +18,22 @@ function mostraQR() {
     toggleMenu();
     document.getElementById('qr-modal').classList.remove('hidden');
     const qrDiv = document.getElementById("qrcode");
-    if(qrDiv.innerHTML === "") {
-        new QRCode(qrDiv, { text: mioID, width: 150, height: 150 });
-    }
+    if(qrDiv.innerHTML === "") { new QRCode(qrDiv, { text: mioID, width: 150, height: 150 }); }
 }
 
 function promptAggiungi() {
     toggleMenu();
-    const id = prompt("Inserisci l'ID dell'amico:");
-    if (id) { salvaContatto(id); apriChat(id); }
+    document.getElementById('add-modal').classList.remove('hidden');
+}
+
+function confermaAggiungi() {
+    const id = document.getElementById('target-id-input').value;
+    if (id) {
+        salvaContatto(id);
+        apriChat(id);
+        document.getElementById('add-modal').classList.add('hidden');
+        document.getElementById('target-id-input').value = "";
+    }
 }
 
 peer.on('connection', (conn) => {
@@ -84,3 +91,5 @@ function invia() {
     salvaEVisualizza(chatAttiva, input.value, 'io');
     input.value = "";
 }
+
+document.getElementById("msg-input").addEventListener("keypress", (e) => { if (e.key === "Enter") invia(); });
