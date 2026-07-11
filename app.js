@@ -7,14 +7,33 @@ let databaseMessaggi = {};
 let coppiaChiaviStait = null;
 let miaChiavePubblicaEsadecimale = "";
 
-// Configurazione ICE: Server usati SOLO per scambiare gli indirizzi IP (Handshake iniziale), i messaggi non passano di qui.
+// Configurazione avanzata ICE con STUN e TURN per aggirare i Symmetric NAT rigidi
 const configurazioneIceWebRTC = {
     'iceServers': [
+        // Server STUN standard
         { 'urls': 'stun:stun.l.google.com:19302' },
         { 'urls': 'stun:stun1.l.google.com:19302' },
-        { 'urls': 'stun:stun2.l.google.com:19302' },
-        { 'urls': 'stun:global.stun.twilio.com:3478?transport=udp' }
-    ]
+        { 'urls': 'stun:global.stun.twilio.com:3478?transport=udp' },
+        
+        // Server TURN gratuiti di fallback (OpenRelay Project)
+        // Se il P2P fallisce, i dati passano cifrati da qui per scavalcare il firewall
+        {
+            'urls': 'turn:openrelay.metered.ca:80',
+            'username': 'openrelayproject',
+            'credential': 'openrelayproject'
+        },
+        {
+            'urls': 'turn:openrelay.metered.ca:443',
+            'username': 'openrelayproject',
+            'credential': 'openrelayproject'
+        },
+        {
+            'urls': 'turn:openrelay.metered.ca:443?transport=tcp',
+            'username': 'openrelayproject',
+            'credential': 'openrelayproject'
+        }
+    ],
+    'iceTransportPolicy': 'all' // Permette sia connessioni dirette sia via relay
 };
 
 // Elementi Dom
@@ -114,7 +133,7 @@ function inizializzaReteP2P(peerId) {
             localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
             setTimeout(() => { location.reload(); }, 1200);
         } else {
-            logStatoSistema("[INFO] Rete in riconfigurazione automatica...");
+            logStatoSistema(`[INFO] Stato connessione: ${err.type}. Tentativo di stabilizzazione...`);
         }
     });
 
@@ -128,7 +147,7 @@ function gestisciConnessioneEntrante(conn) {
         return;
     }
 
-    logStatoSistema(`Richiesta di aggancio rilevata. Apertura tunnel diretto...`);
+    logStatoSistema(`Richiesta di aggancio rilevata. Negoziazione dei nodi ICE...`);
     
     activeConnection = conn;
     activePeerId = conn.peer;
@@ -136,7 +155,7 @@ function gestisciConnessioneEntrante(conn) {
     activeConnection.on('open', () => {
         aggiungiPeerAInterfaccia(activePeerId);
         selezionaPeerChat(activePeerId);
-        logStatoSistema(`Tunnel WebRTC Diretto stabilito con successo. Messaggi sicuri al 100%.`);
+        logStatoSistema(`Tunnel WebRTC stabilito. Canale sicuro attivo.`);
     });
 
     activeConnection.on('data', (dataCifrata) => {
@@ -169,7 +188,7 @@ function connettiAPeer() {
         return;
     }
 
-    logStatoSistema(`Perforazione firewall ed invio coordinate P2P...`);
+    logStatoSistema(`Perforazione firewall ed invio coordinate (STUN/TURN)...`);
 
     const conn = peer.connect(cleanId, {
         reliable: true
@@ -181,7 +200,7 @@ function connettiAPeer() {
 
         aggiungiPeerAInterfaccia(activePeerId);
         selezionaPeerChat(activePeerId);
-        logStatoSistema(`Connessione riuscita! Tunnel privato WebRTC aperto.`);
+        logStatoSistema(`Connessione riuscita! Flusso sicuro stabilito.`);
         inputField.value = ""; 
     });
 
@@ -195,8 +214,8 @@ function connettiAPeer() {
     });
 
     conn.on('error', (e) => {
-        logStatoSistema(`Errore di puntamento.`);
-        alert("Impossibile raggiungere il peer attraverso questo firewall di rete.");
+        logStatoSistema(`Errore critico di negoziazione.`);
+        alert("Impossibile superare questo blocco NAT di rete. Verifica che l'altro peer sia online.");
     });
 }
 
@@ -210,7 +229,6 @@ async function inviaMessaggioReale() {
         timestamp: Date.now()
     };
 
-    // Il pacchetto dati viene iniettato nel tunnel diretto criptato
     activeConnection.send(pacchettoMessaggio);
 
     salvaMessaggioInLocale(activePeerId, "sent", testo);
@@ -268,7 +286,7 @@ function selezionaPeerChat(peerId) {
     }
 
     chatWithTitle.innerText = "Peer_" + peerId.substring(0, 12).toUpperCase() + "...";
-    chatStatusText.innerText = "Canale WebRTC Diretto Cifrato Attivo";
+    chatStatusText.innerText = "Canale WebRTC Cifrato Attivo";
     chatStatusText.style.color = "var(--neon-blue)";
 
     messageInput.disabled = false;
