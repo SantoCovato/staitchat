@@ -1,6 +1,7 @@
 let mioID = localStorage.getItem('mio-peer-id');
 let contatti = JSON.parse(localStorage.getItem('contatti') || '[]');
 let messaggi = JSON.parse(localStorage.getItem('storico-messaggi') || '{}');
+let connessioni = {}; 
 let chatAttiva = null;
 
 const peer = new Peer(mioID, { host: '0.peerjs.com', port: 443, secure: true, key: 'peerjs' });
@@ -11,12 +12,13 @@ peer.on('open', (id) => {
     renderListaContatti();
 });
 
-// Ricezione messaggi da altri
+// Ricezione connessioni in entrata
 peer.on('connection', (conn) => {
     setupConnessione(conn);
 });
 
 function setupConnessione(conn) {
+    connessioni[conn.peer] = conn;
     conn.on('data', (data) => {
         salvaEVisualizza(conn.peer, "Lui: " + data, 'lui');
     });
@@ -42,6 +44,13 @@ function renderListaContatti() {
 function apriChat(id) {
     chatAttiva = id;
     document.getElementById('chat-title').innerText = "Chat con: " + id;
+    
+    // Se non abbiamo una connessione attiva, creiamola
+    if (!connessioni[id]) {
+        let conn = peer.connect(id, { reliable: true });
+        setupConnessione(conn);
+    }
+    
     const msgs = messaggi[id] || [];
     const container = document.getElementById('messages');
     container.innerHTML = msgs.map(m => `<div class="msg ${m.tipo}">${m.testo}</div>`).join('');
@@ -60,17 +69,15 @@ function invia() {
     const input = document.getElementById('msg-input');
     const testo = input.value;
     
-    // Tentiamo la connessione
-    const conn = peer.connect(chatAttiva, { reliable: true });
-    conn.on('open', () => {
-        conn.send(testo);
+    if (connessioni[chatAttiva] && connessioni[chatAttiva].open) {
+        connessioni[chatAttiva].send(testo);
         salvaEVisualizza(chatAttiva, "Io: " + testo, 'io');
         input.value = "";
-    });
-    conn.on('error', (err) => alert("Impossibile connettersi: l'utente è offline"));
+    } else {
+        alert("Connessione non pronta. Riprova tra un secondo.");
+    }
 }
 
-// Invio con tasto Invio
 document.getElementById("msg-input").addEventListener("keypress", (e) => {
     if (e.key === "Enter") invia();
 });
