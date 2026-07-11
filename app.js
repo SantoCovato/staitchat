@@ -3,37 +3,19 @@ let peer = null;
 let activeConnection = null;
 let activePeerId = null;
 let databaseMessaggi = {}; 
+let tentativoConnessioneInterval = null; // Timer per il polling aggressivo
 
 let coppiaChiaviStait = null;
 let miaChiavePubblicaEsadecimale = "";
 
-// Configurazione avanzata ICE con STUN e TURN per aggirare i Symmetric NAT rigidi
+// SOLO STUN pubblici per conoscere il proprio IP. NESSUN server TURN/Relay esterno.
 const configurazioneIceWebRTC = {
     'iceServers': [
-        // Server STUN standard
         { 'urls': 'stun:stun.l.google.com:19302' },
         { 'urls': 'stun:stun1.l.google.com:19302' },
-        { 'urls': 'stun:global.stun.twilio.com:3478?transport=udp' },
-        
-        // Server TURN gratuiti di fallback (OpenRelay Project)
-        // Se il P2P fallisce, i dati passano cifrati da qui per scavalcare il firewall
-        {
-            'urls': 'turn:openrelay.metered.ca:80',
-            'username': 'openrelayproject',
-            'credential': 'openrelayproject'
-        },
-        {
-            'urls': 'turn:openrelay.metered.ca:443',
-            'username': 'openrelayproject',
-            'credential': 'openrelayproject'
-        },
-        {
-            'urls': 'turn:openrelay.metered.ca:443?transport=tcp',
-            'username': 'openrelayproject',
-            'credential': 'openrelayproject'
-        }
+        { 'urls': 'stun:stun2.l.google.com:19302' }
     ],
-    'iceTransportPolicy': 'all' // Permette sia connessioni dirette sia via relay
+    'iceTransportPolicy': 'all'
 };
 
 // Elementi Dom
@@ -48,7 +30,6 @@ const chatStatusText = document.getElementById('chat-status-text');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 
-// Inizializzazione automatico/manuale
 window.addEventListener('DOMContentLoaded', async () => {
     const pubKeySalvata = localStorage.getItem('stait_peer_pubkey');
     if (pubKeySalvata) {
@@ -88,9 +69,7 @@ async function inizializzaGenerazione() {
         
         localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
         inizializzaReteP2P(miaChiavePubblicaEsadecimale);
-
     } catch (e) {
-        console.error(e);
         miaChiavePubblicaEsadecimale = await generatIDCasualeAlternativo();
         localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
         inizializzaReteP2P(miaChiavePubblicaEsadecimale);
@@ -114,109 +93,104 @@ function inizializzaReteP2P(peerId) {
         correctLevel : QRCode.CorrectLevel.M
     });
 
-    logStatoSistema("Inizializzazione del protocollo di rete decentralizzato...");
+    logStatoSistema("Protocollo P2P Puro attivo. Nessun intermediario.");
 
     peer = new Peer(peerId, {
-        config: configurazioneIceWebRTC
+        config: configurazioneIceWebRTC,
+        debug: 1
     });
 
-    peer.on('open', (id) => {
-        logStatoSistema("Nodo P2P online. Pronto a trasmettere direttamente.");
+    peer.on('open', () => {
+        logStatoSistema("Nodo locale online. In attesa di connessioni dirette...");
     });
 
     peer.on('error', async (err) => {
-        console.error("Errore di rete P2P:", err);
-        
         if (err.type === 'unavailable-id' || err.type === 'id-taken') {
-            logStatoSistema("[SISTEMA] ID precedente occupato. Rigenerazione flussi...");
             miaChiavePubblicaEsadecimale = await generatIDCasualeAlternativo();
             localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
-            setTimeout(() => { location.reload(); }, 1200);
-        } else {
-            logStatoSistema(`[INFO] Stato connessione: ${err.type}. Tentativo di stabilizzazione...`);
+            setTimeout(() => { location.reload(); }, 1000);
         }
     });
 
     peer.on('connection', (conn) => {
+        clearInterval(tentativoConnessioneInterval); // Blocca i tentativi se stiamo ricevendo la connessione
         gestisciConnessioneEntrante(conn);
     });
 }
 
 function gestisciConnessioneEntrante(conn) {
-    if (activeConnection && activePeerId === conn.peer) {
-        return;
-    }
+    if (activeConnection && activePeerId === conn.peer) return;
 
-    logStatoSistema(`Richiesta di aggancio rilevata. Negoziazione dei nodi ICE...`);
+    logStatoSistema(`Sincronizzazione NAT in corso con il peer...`);
     
     activeConnection = conn;
     activePeerId = conn.peer;
 
     activeConnection.on('open', () => {
+        clearInterval(tentativoConnessioneInterval);
         aggiungiPeerAInterfaccia(activePeerId);
         selezionaPeerChat(activePeerId);
-        logStatoSistema(`Tunnel WebRTC stabilito. Canale sicuro attivo.`);
+        logStatoSistema(`[OK] Tunnel P2P perforato stabilito direttamente.`);
     });
 
-    activeConnection.on('data', (dataCifrata) => {
-        gestisciRicezioneMessaggio(conn.peer, dataCifrata);
+    activeConnection.on('data', (data) => {
+        gestisciRicezioneMessaggio(conn.peer, data);
     });
 
     activeConnection.on('close', () => {
-        logStatoSistema(`Il peer si è disconnesso.`);
+        logStatoSistema(`Canale chiuso dal peer.`);
         impostaPeerOffline();
     });
 }
 
 function connettiAPeer() {
     const inputField = document.getElementById('peer-target-input');
-    const targetId = inputField.value;
+    const targetId = inputField.value.trim().toLowerCase();
     
-    if (!targetId || targetId.trim() === "") {
-        alert("Inserisci un ID valido prima di connetterti.");
-        return;
-    }
-    const cleanId = targetId.trim().toLowerCase();
+    if (!targetId) return;
+    if (targetId === miaChiavePubblicaEsadecimale) return alert("Non puoi connetterti a te stesso.");
 
-    if (cleanId === miaChiavePubblicaEsadecimale) {
-        alert("Non puoi connetterti a te stesso.");
-        return;
-    }
+    // Se c'è già un loop attivo, lo resetto
+    clearInterval(tentativoConnessioneInterval);
 
-    if (activeConnection && activePeerId === cleanId) {
-        alert("Sei già connesso in linea diretta con questo Peer.");
-        return;
-    }
+    logStatoSistema(`Avvio Hole Punching aggressivo. Tentativi ciclici ogni 3 secondi...`);
 
-    logStatoSistema(`Perforazione firewall ed invio coordinate (STUN/TURN)...`);
+    // Funzione interna per forzare il punch sul firewall
+    const eseguiTentativoP2P = () => {
+        if (activeConnection && activeConnection.open) {
+            clearInterval(tentativoConnessioneInterval);
+            return;
+        }
 
-    const conn = peer.connect(cleanId, {
-        reliable: true
-    });
+        console.log("Tentativo di perforazione NAT verso:", targetId);
+        const conn = peer.connect(targetId, {
+            reliable: true,
+            connectionTimeout: 2500 // Timeout corto per scartare rapidamente i tentativi falliti
+        });
 
-    conn.on('open', () => {
-        activeConnection = conn;
-        activePeerId = cleanId;
+        conn.on('open', () => {
+            clearInterval(tentativoConnessioneInterval); // Tunnel aperto, stop al martellamento
+            activeConnection = conn;
+            activePeerId = targetId;
 
-        aggiungiPeerAInterfaccia(activePeerId);
-        selezionaPeerChat(activePeerId);
-        logStatoSistema(`Connessione riuscita! Flusso sicuro stabilito.`);
-        inputField.value = ""; 
-    });
+            aggiungiPeerAInterfaccia(activePeerId);
+            selezionaPeerChat(activePeerId);
+            logStatoSistema(`[OK] Firewall bucato! Connessione P2P Diretta attiva.`);
+            inputField.value = ""; 
+        });
 
-    conn.on('data', (dataCifrata) => {
-        gestisciRicezioneMessaggio(cleanId, dataCifrata);
-    });
+        conn.on('data', (data) => {
+            gestisciRicezioneMessaggio(targetId, data);
+        });
 
-    conn.on('close', () => {
-        logStatoSistema(`Canale chiuso.`);
-        impostaPeerOffline();
-    });
+        conn.on('close', () => {
+            impostaPeerOffline();
+        });
+    };
 
-    conn.on('error', (e) => {
-        logStatoSistema(`Errore critico di negoziazione.`);
-        alert("Impossibile superare questo blocco NAT di rete. Verifica che l'altro peer sia online.");
-    });
+    // Esegui il primo e programma i successivi finché il firewall non cede
+    eseguiTentativoP2P();
+    tentativoConnessioneInterval = setInterval(eseguiTentativoP2P, 3000);
 }
 
 async function inviaMessaggioReale() {
@@ -230,7 +204,6 @@ async function inviaMessaggioReale() {
     };
 
     activeConnection.send(pacchettoMessaggio);
-
     salvaMessaggioInLocale(activePeerId, "sent", testo);
     renderizzaNuovoMessaggio("sent", testo);
 
@@ -241,16 +214,9 @@ async function inviaMessaggioReale() {
 function gestisciRicezioneMessaggio(mittenteId, pacchetto) {
     if (pacchetto && pacchetto.tipo === "chat") {
         salvaMessaggioInLocale(mittenteId, "received", pacchetto.testo);
-        
         if (activePeerId === mittenteId) {
             renderizzaNuovoMessaggio("received", pacchetto.testo);
             messagesBox.scrollTop = messagesBox.scrollHeight;
-        } else {
-            const item = document.getElementById(`peer-item-${mittenteId}`);
-            if (item) {
-                item.querySelector('.contact-status').innerText = "nuovo messaggio!";
-                item.querySelector('.contact-status').style.color = "#ffcc00";
-            }
         }
     }
 }
@@ -276,24 +242,21 @@ function aggiungiPeerAInterfaccia(peerId) {
 
 function selezionaPeerChat(peerId) {
     activePeerId = peerId;
-    
     document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
     const currentItem = document.getElementById(`peer-item-${peerId}`);
     if (currentItem) {
         currentItem.classList.add('active');
-        currentItem.querySelector('.contact-status').innerText = "online";
-        currentItem.querySelector('.contact-status').style.color = "var(--neon-blue)";
     }
 
     chatWithTitle.innerText = "Peer_" + peerId.substring(0, 12).toUpperCase() + "...";
-    chatStatusText.innerText = "Canale WebRTC Cifrato Attivo";
+    chatStatusText.innerText = "Canale P2P Puro e Diretto";
     chatStatusText.style.color = "var(--neon-blue)";
 
     messageInput.disabled = false;
-    messageInput.placeholder = "Invia un messaggio nel flusso sicuro...";
+    messageInput.placeholder = "Invia un messaggio diretto...";
     sendBtn.disabled = false;
 
-    svuotaEInizializzaFinestraChat();
+    messagesBox.innerHTML = "";
     if (databaseMessaggi[peerId]) {
         databaseMessaggi[peerId].forEach(msg => {
             renderizzaNuovoMessaggio(msg.direzione, msg.testo);
@@ -318,41 +281,21 @@ function logStatoSistema(messaggio) {
 }
 
 function impostaPeerOffline() {
-    chatStatusText.innerText = "Connessione interrotta (Peer Offline)";
+    chatStatusText.innerText = "Disconnesso";
     chatStatusText.style.color = "var(--text-muted)";
     messageInput.disabled = true;
-    messageInput.placeholder = "Peer non raggiungibile...";
-    sendBtn.disabled = true;
-    
-    const currentItem = document.getElementById(`peer-item-${activePeerId}`);
-    if (currentItem) {
-        currentItem.querySelector('.contact-status').innerText = "offline";
-        currentItem.querySelector('.contact-status').className = "contact-status offline";
-    }
-}
-
-function svuotaEInizializzaFinestraChat() {
-    messagesBox.innerHTML = "";
 }
 
 function salvaMessaggioInLocale(peerId, direzione, testo) {
-    if (!databaseMessaggi[peerId]) {
-        databaseMessaggi[peerId] = [];
-    }
-    databaseMessaggi[peerId].push({
-        direzione: direzione,
-        testo: testo,
-        timestamp: Date.now()
-    });
+    if (!databaseMessaggi[peerId]) databaseMessaggi[peerId] = [];
+    databaseMessaggi[peerId].push({ direzione, testo, timestamp: Date.now() });
 }
 
 function copiaIlMioID() {
     navigator.clipboard.writeText(miaChiavePubblicaEsadecimale);
-    alert("STAIT_ID copiato negli appunti! Invialo al tuo peer.");
+    alert("ID copiato!");
 }
 
 function arrayBufferToHex(buffer) {
-    return Array.from(new Uint8Array(buffer))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
+    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
