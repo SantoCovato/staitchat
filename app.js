@@ -51,6 +51,9 @@ function apriChat(id) {
     chatAttiva = id;
     document.getElementById('chat-title').innerText = "Chat con: " + id;
     
+    // Attiva la visualizzazione chat su mobile
+    document.getElementById('chat-area').classList.add('active');
+    
     if (!connessioni[id]) {
         let conn = peer.connect(id, { reliable: true });
         setupConnessione(conn);
@@ -60,6 +63,11 @@ function apriChat(id) {
     const container = document.getElementById('messages');
     container.innerHTML = msgs.map(m => `<div class="msg ${m.tipo}">${m.testo}</div>`).join('');
     container.scrollTop = container.scrollHeight;
+}
+
+function chiudiChat() {
+    document.getElementById('chat-area').classList.remove('active');
+    chatAttiva = null;
 }
 
 function salvaEVisualizza(id, testo, tipo) {
