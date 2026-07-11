@@ -2,9 +2,8 @@
 let peer = null;
 let activeConnection = null;
 let activePeerId = null;
-let databaseMessaggi = {}; // Mappa: peerId -> array di oggetti messaggio
+let databaseMessaggi = {}; 
 
-// Chiavi asimmetriche in memoria volatile (RAM) per sessione
 let coppiaChiaviStait = null;
 let miaChiavePubblicaEsadecimale = "";
 
@@ -20,7 +19,7 @@ const chatStatusText = document.getElementById('chat-status-text');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 
-// Inizializzazione al caricamento della pagina
+// Inizializzazione automatico/manuale
 window.addEventListener('DOMContentLoaded', async () => {
     const pubKeySalvata = localStorage.getItem('stait_peer_pubkey');
     if (pubKeySalvata) {
@@ -32,7 +31,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Generazione vera delle chiavi Crittografiche
+// Forza la rigenerazione immediata delle chiavi in caso di blocco di rete o ID duplicato
+function hardResetID() {
+    localStorage.removeItem('stait_peer_pubkey');
+    location.reload();
+}
+
+async function generatIDCasualeAlternativo() {
+    // Fallback d'emergenza se la rete rifiuta l'ID primario
+    const array = new Uint8Array(32);
+    window.crypto.getRandomValues(array);
+    return arrayBufferToHex(array);
+}
+
 async function inizializzaGenerazione() {
     try {
         const btn = setupScreen.querySelector('button');
@@ -53,11 +64,13 @@ async function inizializzaGenerazione() {
 
     } catch (e) {
         console.error(e);
-        alert("Errore nell'inizializzazione dell'hardware crittografico.");
+        // Fallback immediato se le API crittografiche hardware falliscono o sono bloccate dall'ambiente browser
+        miaChiavePubblicaEsadecimale = await generatIDCasualeAlternativo();
+        localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
+        inizializzaReteP2P(miaChiavePubblicaEsadecimale);
     }
 }
 
-// Inizializza il nodo di rete P2P reale tramite protocollo WebRTC
 function inizializzaReteP2P(peerId) {
     setupScreen.style.display = 'none';
     appScreen.style.display = 'flex';
@@ -77,15 +90,25 @@ function inizializzaReteP2P(peerId) {
 
     logStatoSistema("Inizializzazione del protocollo di rete decentralizzato...");
 
+    // Creazione del nodo con gestione avanzata degli errori di collisione/blocco
     peer = new Peer(peerId);
 
     peer.on('open', (id) => {
         logStatoSistema("Nodo P2P online. Pronto a trasmettere direttamente.");
     });
 
-    peer.on('error', (err) => {
+    peer.on('error', async (err) => {
         console.error("Errore di rete P2P:", err);
-        logStatoSistema("[ERRORE RETE] Impossibile trovare o registrare il peer.");
+        
+        // Se l'errore è dovuto ad un ID non disponibile o bloccato, lo rigeneriamo istantaneamente senza bloccare la UI
+        if (err.type === 'unavailable-id' || err.type === 'id-taken') {
+            logStatoSistema("[SISTEMA] ID precedente bloccato sulla rete. Rigenerazione forzata...");
+            miaChiavePubblicaEsadecimale = await generatIDCasualeAlternativo();
+            localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
+            setTimeout(() => { location.reload(); }, 1500);
+        } else {
+            logStatoSistema("[ERRORE RETE] Impossibile connettersi ai server di instradamento.");
+        }
     });
 
     peer.on('connection', (conn) => {
@@ -93,7 +116,6 @@ function inizializzaReteP2P(peerId) {
     });
 }
 
-// Gestione del canale quando un Peer esterno avvia il collegamento con noi
 function gestisciConnessioneEntrante(conn) {
     logStatoSistema(`Tentativo di aggancio P2P in entrata da: ${conn.peer.substring(0,8)}...`);
     
@@ -116,7 +138,6 @@ function gestisciConnessioneEntrante(conn) {
     });
 }
 
-// Avvia attivamente una connessione P2P verso un altro ID inserito nel campo di testo
 function connettiAPeer() {
     const inputField = document.getElementById('peer-target-input');
     const targetId = inputField.value;
@@ -163,7 +184,6 @@ function connettiAPeer() {
     });
 }
 
-// Esegue l'invio reale del testo inserito dall'utente sul canale P2P crittografato
 async function inviaMessaggioReale() {
     const testo = messageInput.value.trim();
     if (!testo || !activeConnection) return;
@@ -183,7 +203,6 @@ async function inviaMessaggioReale() {
     messagesBox.scrollTop = messagesBox.scrollHeight;
 }
 
-// Gestisce la ricezione dei pacchetti dati
 function gestisciRicezioneMessaggio(mittenteId, pacchetto) {
     if (pacchetto && pacchetto.tipo === "chat") {
         salvaMessaggioInLocale(mittenteId, "received", pacchetto.testo);
@@ -201,7 +220,6 @@ function gestisciRicezioneMessaggio(mittenteId, pacchetto) {
     }
 }
 
-// Funzioni Interfaccia Grafica
 function aggiungiPeerAInterfaccia(peerId) {
     if (document.getElementById(`peer-item-${peerId}`)) return;
 
