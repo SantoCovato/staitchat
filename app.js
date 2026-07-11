@@ -25,7 +25,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     const pubKeySalvata = localStorage.getItem('stait_peer_pubkey');
     if (pubKeySalvata) {
         miaChiavePubblicaEsadecimale = pubKeySalvata;
-        // Inizializza automaticamente la rete P2P se la chiave esiste già
         inizializzaReteP2P(miaChiavePubblicaEsadecimale);
     } else {
         appScreen.style.display = 'none';
@@ -33,29 +32,23 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Generazione vera delle chiavi Crittografiche ed esadecimale pulito per l'ID di rete
+// Generazione vera delle chiavi Crittografiche
 async function inizializzaGenerazione() {
     try {
         const btn = setupScreen.querySelector('button');
         btn.innerText = "CRITTOGRAFIA IN CORSO...";
         btn.disabled = true;
 
-        // 1. Genera chiavi asimmetriche reali in locale (ECDH P-256)
         coppiaChiaviStait = await window.crypto.subtle.generateKey(
             { name: "ECDH", namedCurve: "P-256" },
             true,
             ["deriveKey", "deriveBits"]
         );
 
-        // 2. Esporta la chiave pubblica in formato Raw binario
         const pubRaw = await window.crypto.subtle.exportKey("raw", coppiaChiaviStait.publicKey);
-        
-        // 3. Converte in stringa esadecimale da usare come ID di rete unico e deterministico
         miaChiavePubblicaEsadecimale = arrayBufferToHex(pubRaw);
         
-        // Salviamo l'identità pubblica per i futuri avvii
         localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
-
         inizializzaReteP2P(miaChiavePubblicaEsadecimale);
 
     } catch (e) {
@@ -69,7 +62,6 @@ function inizializzaReteP2P(peerId) {
     setupScreen.style.display = 'none';
     appScreen.style.display = 'flex';
 
-    // Mostra ID ed esegui rendering del QR Code reale per la condivisione fisica
     myIdText.innerText = "STAIT_ID: " + peerId.substring(0, 16).toUpperCase() + "...";
     myIdText.title = peerId;
     
@@ -85,9 +77,6 @@ function inizializzaReteP2P(peerId) {
 
     logStatoSistema("Inizializzazione del protocollo di rete decentralizzato...");
 
-    // Creazione del nodo PeerJS. L'ID del nodo corrisponde alla chiave pubblica dell'utente.
-    // Utilizza i server cloud pubblici di PeerJS esclusivamente per la fase di "handshake" (scambio degli IP).
-    // Una volta scambiati gli IP, il server sparisce e la connessione diventa diretta da browser a browser.
     peer = new Peer(peerId);
 
     peer.on('open', (id) => {
@@ -99,7 +88,6 @@ function inizializzaReteP2P(peerId) {
         logStatoSistema("[ERRORE RETE] Impossibile trovare o registrare il peer.");
     });
 
-    // Ascolta le connessioni in entrata (Quando qualcun altro inserisce il tuo ID)
     peer.on('connection', (conn) => {
         gestisciConnessioneEntrante(conn);
     });
@@ -128,10 +116,15 @@ function gestisciConnessioneEntrante(conn) {
     });
 }
 
-// Avvia attivamente una connessione P2P verso un altro ID inserito manuale o via QR
+// Avvia attivamente una connessione P2P verso un altro ID inserito nel campo di testo
 function connettiAPeer() {
-    const targetId = prompt("Inserisci lo STAIT_ID (Chiave Pubblica) del destinatario:");
-    if (!targetId || targetId.trim() === "") return;
+    const inputField = document.getElementById('peer-target-input');
+    const targetId = inputField.value;
+    
+    if (!targetId || targetId.trim() === "") {
+        alert("Inserisci un ID valido prima di connetterti.");
+        return;
+    }
     const cleanId = targetId.trim().toLowerCase();
 
     if (cleanId === miaChiavePubblicaEsadecimale) {
@@ -141,7 +134,6 @@ function connettiAPeer() {
 
     logStatoSistema(`Ricerca del peer ${cleanId.substring(0,8)} nella tabella DHT...`);
 
-    // Apre il canale dati WebRTC diretto
     const conn = peer.connect(cleanId, {
         reliable: true
     });
@@ -153,6 +145,7 @@ function connettiAPeer() {
         aggiungiPeerAInterfaccia(activePeerId);
         selezionaPeerChat(activePeerId);
         logStatoSistema(`Canale diretto WebRTC aperto con successo.`);
+        inputField.value = ""; 
     });
 
     conn.on('data', (dataCifrata) => {
@@ -181,10 +174,8 @@ async function inviaMessaggioReale() {
         timestamp: Date.now()
     };
 
-    // Trasmissione sul canale dati WebRTC puro (Zero server centrali per la chat)
     activeConnection.send(pacchettoMessaggio);
 
-    // Salva nel database locale della RAM ed esegui il rendering a schermo
     salvaMessaggioInLocale(activePeerId, "sent", testo);
     renderizzaNuovoMessaggio("sent", testo);
 
@@ -192,17 +183,15 @@ async function inviaMessaggioReale() {
     messagesBox.scrollTop = messagesBox.scrollHeight;
 }
 
-// Gestisce la ricezione dei pacchetti dati che arrivano dal canale WebRTC
+// Gestisce la ricezione dei pacchetti dati
 function gestisciRicezioneMessaggio(mittenteId, pacchetto) {
     if (pacchetto && pacchetto.tipo === "chat") {
         salvaMessaggioInLocale(mittenteId, "received", pacchetto.testo);
         
-        // Se la chat con questo peer è quella correntemente aperta, mostra il messaggio subito
         if (activePeerId === mittenteId) {
             renderizzaNuovoMessaggio("received", pacchetto.testo);
             messagesBox.scrollTop = messagesBox.scrollHeight;
         } else {
-            // Se siamo su un'altra chat, notifica visivamente sulla lista contatti
             const item = document.getElementById(`peer-item-${mittenteId}`);
             if (item) {
                 item.querySelector('.contact-status').innerText = "nuovo messaggio!";
@@ -212,7 +201,7 @@ function gestisciRicezioneMessaggio(mittenteId, pacchetto) {
     }
 }
 
-// Funzioni Interfaccia Grafica e Aggiornamento Dinamico
+// Funzioni Interfaccia Grafica
 function aggiungiPeerAInterfaccia(peerId) {
     if (document.getElementById(`peer-item-${peerId}`)) return;
 
@@ -304,7 +293,6 @@ function salvaMessaggioInLocale(peerId, direzione, testo) {
     });
 }
 
-// Copia negli appunti
 function copiaIlMioID() {
     navigator.clipboard.writeText(miaChiavePubblicaEsadecimale);
     alert("STAIT_ID copiato negli appunti! Invialo al tuo peer.");
