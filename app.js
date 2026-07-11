@@ -3,12 +3,12 @@ let peer = null;
 let activeConnection = null;
 let activePeerId = null;
 let databaseMessaggi = {}; 
-let tentativoConnessioneInterval = null; // Timer per il polling aggressivo
+let tentativoConnessioneInterval = null; 
 
 let coppiaChiaviStait = null;
 let miaChiavePubblicaEsadecimale = "";
 
-// SOLO STUN pubblici per conoscere il proprio IP. NESSUN server TURN/Relay esterno.
+// SOLO STUN pubblici base per mappare l'IP locale. NESSUN server TURN.
 const configurazioneIceWebRTC = {
     'iceServers': [
         { 'urls': 'stun:stun.l.google.com:19302' },
@@ -93,7 +93,7 @@ function inizializzaReteP2P(peerId) {
         correctLevel : QRCode.CorrectLevel.M
     });
 
-    logStatoSistema("Protocollo P2P Puro attivo. Nessun intermediario.");
+    logStatoSistema("Protocollo P2P Puro attivo. In attesa...");
 
     peer = new Peer(peerId, {
         config: configurazioneIceWebRTC,
@@ -101,7 +101,7 @@ function inizializzaReteP2P(peerId) {
     });
 
     peer.on('open', () => {
-        logStatoSistema("Nodo locale online. In attesa di connessioni dirette...");
+        logStatoSistema("Nodo locale online. Pronto.");
     });
 
     peer.on('error', async (err) => {
@@ -112,16 +112,16 @@ function inizializzaReteP2P(peerId) {
         }
     });
 
+    // Quando arriva una richiesta, agganciamo i flussi e rispondiamo al fuoco
     peer.on('connection', (conn) => {
-        clearInterval(tentativoConnessioneInterval); // Blocca i tentativi se stiamo ricevendo la connessione
         gestisciConnessioneEntrante(conn);
     });
 }
 
 function gestisciConnessioneEntrante(conn) {
-    if (activeConnection && activePeerId === conn.peer) return;
+    if (activeConnection && activeConnection.open && activePeerId === conn.peer) return;
 
-    logStatoSistema(`Sincronizzazione NAT in corso con il peer...`);
+    logStatoSistema(`Richiesta rilevata da ${conn.peer.substring(0,8).toUpperCase()}. Risposta forzata con Hole Punching bilaterale...`);
     
     activeConnection = conn;
     activePeerId = conn.peer;
@@ -130,7 +130,7 @@ function gestisciConnessioneEntrante(conn) {
         clearInterval(tentativoConnessioneInterval);
         aggiungiPeerAInterfaccia(activePeerId);
         selezionaPeerChat(activePeerId);
-        logStatoSistema(`[OK] Tunnel P2P perforato stabilito direttamente.`);
+        logStatoSistema(`[OK] Tunnel P2P sincronizzato e aperto in modo bidirezionale.`);
     });
 
     activeConnection.on('data', (data) => {
@@ -141,6 +141,32 @@ function gestisciConnessioneEntrante(conn) {
         logStatoSistema(`Canale chiuso dal peer.`);
         impostaPeerOffline();
     });
+
+    // Mossa chiave: Il PC ha ricevuto il segnale, quindi lancia subito a sua volta 
+    // un ciclo di connessione verso il telefono per forzare l'apertura del firewall lato PC.
+    forzaHolePunchingSpeculare(conn.peer);
+}
+
+function forzaHolePunchingSpeculare(targetId) {
+    if (tentativoConnessioneInterval) return; // Evita loop multipli sovrapposti
+
+    tentativoConnessioneInterval = setInterval(() => {
+        if (activeConnection && activeConnection.open) {
+            clearInterval(tentativoConnessioneInterval);
+            return;
+        }
+        console.log("Hole punching speculare di risposta verso:", targetId);
+        let connRiconnessione = peer.connect(targetId, { reliable: true, connectionTimeout: 2000 });
+        
+        connRiconnessione.on('open', () => {
+            clearInterval(tentativoConnessioneInterval);
+            activeConnection = connRiconnessione;
+            activePeerId = targetId;
+            aggiungiPeerAInterfaccia(activePeerId);
+            selezionaPeerChat(activePeerId);
+            logStatoSistema(`[OK] Tunnel sbloccato tramite risposta speculare.`);
+        });
+    }, 2500);
 }
 
 function connettiAPeer() {
@@ -150,32 +176,29 @@ function connettiAPeer() {
     if (!targetId) return;
     if (targetId === miaChiavePubblicaEsadecimale) return alert("Non puoi connetterti a te stesso.");
 
-    // Se c'è già un loop attivo, lo resetto
     clearInterval(tentativoConnessioneInterval);
+    logStatoSistema(`Martellamento firewall avviato verso il peer target...`);
 
-    logStatoSistema(`Avvio Hole Punching aggressivo. Tentativi ciclici ogni 3 secondi...`);
-
-    // Funzione interna per forzare il punch sul firewall
     const eseguiTentativoP2P = () => {
         if (activeConnection && activeConnection.open) {
             clearInterval(tentativoConnessioneInterval);
             return;
         }
 
-        console.log("Tentativo di perforazione NAT verso:", targetId);
+        console.log("Tentativo di punch in uscita verso:", targetId);
         const conn = peer.connect(targetId, {
             reliable: true,
-            connectionTimeout: 2500 // Timeout corto per scartare rapidamente i tentativi falliti
+            connectionTimeout: 2000 
         });
 
         conn.on('open', () => {
-            clearInterval(tentativoConnessioneInterval); // Tunnel aperto, stop al martellamento
+            clearInterval(tentativoConnessioneInterval);
             activeConnection = conn;
             activePeerId = targetId;
 
             aggiungiPeerAInterfaccia(activePeerId);
             selezionaPeerChat(activePeerId);
-            logStatoSistema(`[OK] Firewall bucato! Connessione P2P Diretta attiva.`);
+            logStatoSistema(`[OK] Connessione P2P Diretta stabilita con successo.`);
             inputField.value = ""; 
         });
 
@@ -188,9 +211,8 @@ function connettiAPeer() {
         });
     };
 
-    // Esegui il primo e programma i successivi finché il firewall non cede
     eseguiTentativoP2P();
-    tentativoConnessioneInterval = setInterval(eseguiTentativoP2P, 3000);
+    tentativoConnessioneInterval = setInterval(eseguiTentativoP2P, 2500);
 }
 
 async function inviaMessaggioReale() {
