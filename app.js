@@ -1,54 +1,52 @@
-// Forza la connessione esplicita al server cloud di PeerJS
-const peer = new Peer(undefined, {
-    host: '0.peerjs.com',
-    port: 443,
-    path: '/',
-    secure: true,
-    key: 'peerjs',
-    debug: 3
-});
-
+// Inizializzazione pulita
+const peer = new Peer(); 
 let conn = null;
 
 // Quando il nodo è pronto
 peer.on('open', (id) => {
-    document.getElementById('my-id-text').innerText = "IL TUO ID: " + id;
+    document.getElementById('my-id').innerText = "IL TUO ID: " + id;
+});
+
+// Gestione errori di rete
+peer.on('error', (err) => {
+    console.error(err);
+    document.getElementById('my-id').innerText = "ERRORE RETE: " + err.type;
 });
 
 // Quando qualcuno si connette a noi
 peer.on('connection', (c) => {
     conn = c;
-    gestisciConnessione();
+    setupConnessione();
 });
 
-// Funzione di connessione manuale
+// Connessione manuale verso un ID
 function connetti() {
     const target = document.getElementById('target-id').value;
     conn = peer.connect(target);
-    gestisciConnessione();
+    setupConnessione();
 }
 
-// Configura i listener una volta stabilita la connessione
-function gestisciConnessione() {
+// Configura i listener per messaggi e stato
+function setupConnessione() {
     conn.on('open', () => {
         document.getElementById('status').innerText = "Stato: Connesso!";
     });
 
     conn.on('data', (data) => {
-        mostraMessaggio("Lui: " + data);
+        aggiungiMessaggio("Lui: " + data);
     });
 }
 
 function invia() {
-    const input = document.getElementById('msg-input');
     if (conn && conn.open) {
-        conn.send(input.value);
-        mostraMessaggio("Io: " + input.value);
-        input.value = "";
+        const msg = document.getElementById('msg-input').value;
+        conn.send(msg);
+        aggiungiMessaggio("Io: " + msg);
+        document.getElementById('msg-input').value = "";
     }
 }
 
-function mostraMessaggio(testo) {
+function aggiungiMessaggio(testo) {
     const div = document.createElement('div');
     div.innerText = testo;
     document.getElementById('messages').appendChild(div);
