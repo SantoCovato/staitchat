@@ -12,6 +12,14 @@ peer.on('open', (id) => {
     renderListaContatti();
 });
 
+function togglePanel(id) {
+    const p = document.getElementById(id);
+    p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+    if(id === 'qr-panel' && p.style.display === 'block' && document.getElementById('qrcode').innerHTML === "") {
+        new QRCode(document.getElementById("qrcode"), { text: mioID, width: 150, height: 150 });
+    }
+}
+
 peer.on('connection', (conn) => {
     salvaContatto(conn.peer);
     setupConnessione(conn);
@@ -36,6 +44,7 @@ function aggiungiContatto() {
     const id = document.getElementById('target-id').value;
     if (!id) return;
     salvaContatto(id);
+    togglePanel('add-panel');
     apriChat(id);
 }
 
@@ -49,9 +58,7 @@ function renderListaContatti() {
 
 function apriChat(id) {
     chatAttiva = id;
-    document.getElementById('chat-title').innerText = "Chat con: " + id;
-    
-    // Attiva la visualizzazione chat su mobile
+    document.getElementById('chat-title').innerText = id;
     document.getElementById('chat-area').classList.add('active');
     
     if (!connessioni[id]) {
@@ -81,16 +88,11 @@ function invia() {
     if (!chatAttiva) return alert("Seleziona una chat!");
     const input = document.getElementById('msg-input');
     const testo = input.value;
-    
     if (connessioni[chatAttiva] && connessioni[chatAttiva].open) {
         connessioni[chatAttiva].send(testo);
         salvaEVisualizza(chatAttiva, testo, 'io');
         input.value = "";
-    } else {
-        alert("Destinatario non raggiungibile, attendi...");
     }
 }
 
-document.getElementById("msg-input").addEventListener("keypress", (e) => {
-    if (e.key === "Enter") invia();
-});
+document.getElementById("msg-input").addEventListener("keypress", (e) => { if (e.key === "Enter") invia(); });
