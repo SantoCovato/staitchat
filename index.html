@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>STAIT P2P Chat</title>
+    <title>Chat P2P</title>
     <style>
         body { font-family: sans-serif; display: flex; height: 95vh; margin: 10px; }
         #sidebar { width: 30%; border-right: 2px solid #ccc; padding: 10px; }
@@ -12,27 +12,23 @@
         .io { text-align: right; color: blue; }
         .lui { text-align: left; color: green; }
         .contatto { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
-        .contatto:hover { background: #eee; }
     </style>
 </head>
 <body>
-
 <div id="sidebar">
-    <h3>Il tuo ID: <span id="my-id">...</span></h3>
+    <h3>ID: <span id="my-id">...</span></h3>
     <input type="text" id="target-id" placeholder="ID amico">
     <button onclick="aggiungiContatto()">Aggiungi</button>
     <div id="lista-contatti"></div>
 </div>
-
 <div id="chat-area">
     <h3 id="chat-title">Seleziona una chat</h3>
     <div id="messages"></div>
     <div>
-        <input type="text" id="msg-input" placeholder="Messaggio..." style="width: 80%;">
+        <input type="text" id="msg-input" placeholder="Messaggio...">
         <button onclick="invia()">Invia</button>
     </div>
 </div>
-
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="app.js"></script>
 </body>
