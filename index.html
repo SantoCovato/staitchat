@@ -14,8 +14,8 @@
         .contatto { padding: 15px; border-bottom: 1px solid #202c33; cursor: pointer; }
         .contatto:hover { background: #2a3942; }
 
-        .fab { position: absolute; bottom: 20px; right: 20px; width: 55px; height: 55px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 30px; cursor: pointer; z-index: 20; }
-        #fab-menu { position: absolute; bottom: 85px; right: 20px; background: var(--panel-dark); border: 1px solid #2a3942; border-radius: 8px; width: 220px; z-index: 20; }
+        .fab { position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 30px; cursor: pointer; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        #fab-menu { position: fixed; bottom: 85px; right: 20px; background: var(--panel-dark); border: 1px solid #2a3942; border-radius: 8px; width: 220px; z-index: 99; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .menu-item { padding: 15px; cursor: pointer; border-bottom: 1px solid #2a3942; }
         .menu-item:hover { background: #2a3942; }
         .hidden { display: none !important; }
@@ -33,7 +33,8 @@
         button.send-btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
 
         .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center; z-index: 1000; }
-        .modal-content { background: var(--panel-dark); padding: 25px; border-radius: 10px; text-align: center; }
+        .modal-content { background: var(--panel-dark); padding: 25px; border-radius: 10px; text-align: center; width: 80%; max-width: 300px; }
+        .modal-content input { width: 100%; margin-bottom: 15px; box-sizing: border-box; }
 
         @media (max-width: 768px) {
             #sidebar { width: 100%; }
@@ -67,11 +68,24 @@
     </div>
 </div>
 
+<!-- Modal QR -->
 <div id="qr-modal" class="modal hidden">
     <div class="modal-content">
         <div id="qrcode"></div>
-        <p>ID: <strong id="my-id">...</strong></p>
+        <p style="margin-top:15px;">ID: <strong id="my-id">...</strong></p>
         <button onclick="document.getElementById('qr-modal').classList.add('hidden')">Chiudi</button>
+    </div>
+</div>
+
+<!-- Modal Aggiungi -->
+<div id="add-modal" class="modal hidden">
+    <div class="modal-content">
+        <h3>Nuovo Contatto</h3>
+        <input type="text" id="target-id-input" placeholder="ID dell'amico...">
+        <div style="display:flex; gap: 10px; justify-content: center;">
+            <button onclick="document.getElementById('add-modal').classList.add('hidden')">Annulla</button>
+            <button onclick="confermaAggiungi()" style="background: var(--accent); color:white; border:none; padding:10px;">Aggiungi</button>
+        </div>
     </div>
 </div>
 
