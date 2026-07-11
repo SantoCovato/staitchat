@@ -4,17 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StaitChat — Ghost Protocol</title>
-    <!-- Libreria per i codici QR -->
+    <!-- PeerJS per connessioni WebRTC P2P dirette -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <!-- QRCode.js per la generazione di QR Code -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
-            --bg-pure: #050505;       /* Nero assoluto di sfondo */
-            --bg-panel: #0d0d0d;      /* Grigio oscurissimo per i pannelli */
-            --bg-item: #141414;       /* Grigio scuro per elementi attivi */
-            --border-dark: #1a1a1a;   /* Bordi appena visibili */
-            --neon-blue: #0077ff;     /* Blu elettrico Stait */
-            --text-main: #ffffff;     /* Testo principale */
-            --text-muted: #666666;    /* Testo spento/secondario */
+            --bg-pure: #050505;
+            --bg-panel: #0d0d0d;
+            --bg-item: #141414;
+            --border-dark: #1a1a1a;
+            --neon-blue: #0077ff;
+            --text-main: #ffffff;
+            --text-muted: #666666;
+            --system-msg: #ffcc00;
         }
 
         * {
@@ -33,9 +36,6 @@
             overflow: hidden;
         }
 
-        /* ---------------------------------- */
-        /* SETUP SCREEN (STEALTH STYLE)       */
-        /* ---------------------------------- */
         #setup-screen {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -54,7 +54,7 @@
             padding: 40px;
             border-radius: 16px;
             text-align: center;
-            max-width: 400px;
+            max-width: 420px;
             width: 100%;
         }
 
@@ -98,16 +98,12 @@
             box-shadow: 0 0 15px rgba(0, 119, 255, 0.4);
         }
 
-        /* ---------------------------------- */
-        /* APP INTERFACE                      */
-        /* ---------------------------------- */
         #app-screen {
-            display: none; /* Gestito da JS */
+            display: none;
             width: 100%;
             height: 100%;
         }
 
-        /* Sidebar */
         #sidebar {
             width: 340px;
             background-color: var(--bg-panel);
@@ -134,7 +130,7 @@
 
         #qrcode {
             padding: 8px;
-            background: #ffffff; /* Il QR deve rimanere bianco per la scansione */
+            background: #ffffff;
             border-radius: 6px;
             display: inline-block;
         }
@@ -153,6 +149,11 @@
             padding: 6px;
             border-radius: 4px;
             width: 100%;
+            cursor: pointer;
+        }
+
+        .id-text-wrapper:hover {
+            color: var(--neon-blue);
         }
 
         .sidebar-action {
@@ -206,6 +207,7 @@
             font-size: 14px;
             font-weight: 600;
             margin-bottom: 2px;
+            word-break: break-all;
         }
 
         .contact-status {
@@ -213,7 +215,10 @@
             color: var(--neon-blue);
         }
 
-        /* Main Chat Area */
+        .contact-status.offline {
+            color: var(--text-muted);
+        }
+
         #chat-area {
             flex: 1;
             display: flex;
@@ -245,13 +250,15 @@
 
         .message-row.sent { justify-content: flex-end; }
         .message-row.received { justify-content: flex-start; }
+        .message-row.system { justify-content: center; }
 
         .bubble {
-            max-width: 55%;
+            max-width: 65%;
             padding: 12px 16px;
             border-radius: 14px;
-            font-size: 14.5px;
+            font-size: 14px;
             line-height: 1.45;
+            word-break: break-word;
         }
 
         .message-row.sent .bubble {
@@ -264,7 +271,18 @@
         .message-row.received .bubble {
             background-color: var(--bg-panel);
             color: var(--text-main);
+            border: 1px solid var(--border-dark);
             border-bottom-left-radius: 2px;
+        }
+
+        .message-row.system .bubble {
+            background-color: transparent;
+            color: var(--system-msg);
+            font-size: 12px;
+            font-family: monospace;
+            text-align: center;
+            max-width: 90%;
+            padding: 4px;
         }
 
         .input-bar {
@@ -289,7 +307,7 @@
 
         .input-bar input:focus {
             outline: none;
-            border-color: var(--text-muted);
+            border-color: var(--neon-blue);
         }
 
         .btn-send {
@@ -314,37 +332,31 @@
 </head>
 <body>
 
-    <!-- 1. INTRO/SETUP SCREEN -->
+    <!-- 1. SETUP SCREEN -->
     <div id="setup-screen">
         <div class="setup-card">
             <div class="brand-title">STAIT<span>CHAT</span></div>
-            <div class="setup-subtitle">Protocollo P2P decentralizzato. Nessun server, nessuna traccia, nessuna censura.</div>
-            <button class="btn-neon" onclick="inizializzaProfilo()">Inizializza Chiavi</button>
+            <div class="setup-subtitle">Protocollo WebRTC P2P Reale. Cifratura End-to-End nativa. Nessun server centrale.</div>
+            <button class="btn-neon" onclick="inizializzaGenerazione()">Inizializza Chiavi e Rete</button>
         </div>
     </div>
 
     <!-- 2. MAIN APP SCREEN -->
-    <div id="app-screen" style="display: flex;">
+    <div id="app-screen">
         
         <!-- Sidebar -->
         <div id="sidebar">
             <div class="sidebar-header">
                 <div class="my-identity-box">
                     <div id="qrcode"></div>
-                    <div class="id-text-wrapper" id="my-id-text">Generazione ID...</div>
+                    <div class="id-text-wrapper" id="my-id-text" onclick="copiaIlMioID()" title="Clicca per copiare">Generazione ID...</div>
                 </div>
             </div>
             <div class="sidebar-action">
-                <button class="btn-neon" style="padding: 10px; font-size: 12px;" onclick="aggiungiContatto()">+ Collega Peer</button>
+                <button class="btn-neon" style="padding: 10px; font-size: 12px;" onclick="connettiAPeer()">+ Connetti a Peer</button>
             </div>
             <div class="contacts-list" id="contacts-container">
-                <div class="contact-item active">
-                    <div class="avatar-shadow">P2P</div>
-                    <div class="contact-info">
-                        <div class="contact-name">Node_01 (Test)</div>
-                        <div class="contact-status">online</div>
-                    </div>
-                </div>
+                <!-- I contatti reali appariranno qui -->
             </div>
         </div>
 
@@ -352,23 +364,20 @@
         <div id="chat-area">
             <div class="chat-header">
                 <div>
-                    <h4 id="chat-with-title" style="font-size: 16px; font-weight: 600;">Node_01</h4>
-                    <span style="font-size: 12px; color: var(--neon-blue);">Canale Diretto Attivo</span>
+                    <h4 id="chat-with-title" style="font-size: 16px; font-weight: 600; color: var(--text-muted);">Nessun Peer Connesso</h4>
+                    <span id="chat-status-text" style="font-size: 12px; color: var(--text-muted);">In attesa di connessione diretta...</span>
                 </div>
             </div>
             
             <div class="messages-container" id="messages-box">
-                <div class="message-row received">
-                    <div class="bubble">Canale cifrato stabilito con successo. Questo testo risiede solo nella RAM del tuo dispositivo.</div>
-                </div>
-                <div class="message-row sent">
-                    <div class="bubble">Test di trasmissione. Nessun server intermediario rilevato.</div>
+                <div class="message-row system">
+                    <div class="bubble">[SISTEMA] Condividi il tuo ID con un amico o inserisci il suo per aprire il canale diretto asimmetrico.</div>
                 </div>
             </div>
 
             <div class="input-bar">
-                <input type="text" id="message-input" placeholder="Invia un messaggio nel flusso sicuro...">
-                <button class="btn-send" onclick="inviaMessaggio()">
+                <input type="text" id="message-input" placeholder="Seleziona un peer o connettiti prima di scrivere..." disabled>
+                <button class="btn-send" id="send-btn" onclick="inviaMessaggioReale()" disabled>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                 </button>
             </div>
