@@ -1,18 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-    <title>STAIT P2P</title>
     <meta charset="UTF-8">
+    <title>STAIT P2P</title>
 </head>
 <body>
-    <div id="my-id-text">Generazione ID...</div>
+    <h2 id="my-id">Generazione ID in corso...</h2>
     
     <input type="text" id="target-id" placeholder="ID dell'amico">
     <button onclick="connetti()">Connetti</button>
     
     <div id="status">Stato: Disconnesso</div>
-    
-    <div id="messages" style="height: 300px; overflow-y: scroll; border: 1px solid #ccc;"></div>
+    <div id="messages" style="height:200px; border:1px solid #ccc; overflow-y:scroll;"></div>
     
     <input type="text" id="msg-input" placeholder="Messaggio">
     <button onclick="invia()">Invia</button>
