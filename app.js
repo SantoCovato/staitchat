@@ -12,7 +12,6 @@ peer.on('open', (id) => {
     renderListaContatti();
 });
 
-// Ricezione: quando qualcuno ti chiama, lo aggiungi ai contatti e apri la chat
 peer.on('connection', (conn) => {
     salvaContatto(conn.peer);
     setupConnessione(conn);
@@ -29,7 +28,7 @@ function salvaContatto(id) {
 function setupConnessione(conn) {
     connessioni[conn.peer] = conn;
     conn.on('data', (data) => {
-        salvaEVisualizza(conn.peer, "Lui: " + data, 'lui');
+        salvaEVisualizza(conn.peer, data, 'lui');
     });
 }
 
@@ -37,7 +36,7 @@ function aggiungiContatto() {
     const id = document.getElementById('target-id').value;
     if (!id) return;
     salvaContatto(id);
-    apriChat(id); // Si connette e apre la chat immediatamente
+    apriChat(id);
 }
 
 function renderListaContatti() {
@@ -52,7 +51,6 @@ function apriChat(id) {
     chatAttiva = id;
     document.getElementById('chat-title').innerText = "Chat con: " + id;
     
-    // Connessione automatica se non esiste
     if (!connessioni[id]) {
         let conn = peer.connect(id, { reliable: true });
         setupConnessione(conn);
@@ -78,9 +76,13 @@ function invia() {
     
     if (connessioni[chatAttiva] && connessioni[chatAttiva].open) {
         connessioni[chatAttiva].send(testo);
-        salvaEVisualizza(chatAttiva, "Io: " + testo, 'io');
+        salvaEVisualizza(chatAttiva, testo, 'io');
         input.value = "";
     } else {
-        alert("Aspetta un secondo che la connessione si stabilizzi...");
+        alert("Destinatario non raggiungibile, attendi...");
     }
 }
+
+document.getElementById("msg-input").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") invia();
+});
