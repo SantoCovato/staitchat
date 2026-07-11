@@ -1,9 +1,9 @@
-// Configurazione forzata per evitare server-error
+// Usiamo una configurazione che forza la chiave di accesso ufficiale
 const peer = new Peer(undefined, {
     host: '0.peerjs.com',
     port: 443,
-    path: '/',
     secure: true,
+    key: 'peerjs', // Questa chiave è fondamentale per autorizzare la connessione
     debug: 3
 });
 
@@ -11,35 +11,33 @@ let conn = null;
 
 peer.on('open', (id) => {
     document.getElementById('my-id').innerText = "IL TUO ID: " + id;
+    console.log("Connesso al server ufficiale. ID: " + id);
 });
 
 peer.on('error', (err) => {
-    // Se fallisce, stampiamo l'errore per capire cosa succede
-    document.getElementById('my-id').innerText = "ERRORE: " + err.type;
-    console.error("PeerJS Error:", err);
+    console.error("Errore PeerJS:", err);
+    document.getElementById('my-id').innerText = "Errore: " + err.type;
+    // Se dà ancora server-error, significa che il server è down in questo momento
 });
 
 peer.on('connection', (c) => {
     conn = c;
-    gestisciConnessione();
+    setupConnessione();
 });
 
 function connetti() {
     const target = document.getElementById('target-id').value;
     if(!target) return alert("Inserisci un ID");
     conn = peer.connect(target, { reliable: true });
-    gestisciConnessione();
+    setupConnessione();
 }
 
-function gestisciConnessione() {
+function setupConnessione() {
     conn.on('open', () => {
         document.getElementById('status').innerText = "Stato: Connesso!";
     });
     conn.on('data', (data) => {
         aggiungiMessaggio("Lui: " + data);
-    });
-    conn.on('error', (err) => {
-        console.error("Connessione fallita", err);
     });
 }
 
@@ -49,8 +47,6 @@ function invia() {
         conn.send(msg);
         aggiungiMessaggio("Io: " + msg);
         document.getElementById('msg-input').value = "";
-    } else {
-        alert("Non sei connesso!");
     }
 }
 
