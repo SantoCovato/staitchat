@@ -252,6 +252,7 @@
             border-bottom: 1px solid var(--border-dark);
             display: flex;
             align-items: center;
+            justify-content: space-between;
         }
 
         .messages-container {
@@ -348,6 +349,20 @@
             background: var(--neon-blue);
             color: var(--text-main);
         }
+        
+        .btn-reset-danger {
+            background: transparent;
+            border: 1px solid #ff3333;
+            color: #ff3333;
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-reset-danger:hover {
+            background: #ff3333;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -373,7 +388,6 @@
                 </div>
             </div>
             
-            <!-- Zona Input integrata per evitare blocchi del browser desktop -->
             <div class="sidebar-action">
                 <input type="text" id="peer-target-input" placeholder="Incolla lo STAIT_ID del peer...">
                 <button class="btn-neon" style="padding: 10px; font-size: 12px;" onclick="connettiAPeer()">Connetti a Peer</button>
@@ -391,6 +405,7 @@
                     <h4 id="chat-with-title" style="font-size: 16px; font-weight: 600; color: var(--text-muted);">Nessun Peer Connesso</h4>
                     <span id="chat-status-text" style="font-size: 12px; color: var(--text-muted);">In attesa di connessione diretta...</span>
                 </div>
+                <button class="btn-reset-danger" onclick="hardResetID()">Rigenera Mio ID</button>
             </div>
             
             <div class="messages-container" id="messages-box">
