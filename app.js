@@ -17,8 +17,9 @@ function toggleMenu() { document.getElementById('fab-menu').classList.toggle('hi
 function mostraQR() {
     toggleMenu();
     document.getElementById('qr-modal').classList.remove('hidden');
-    if(document.getElementById('qrcode').innerHTML === "") {
-        new QRCode(document.getElementById("qrcode"), { text: mioID, width: 150, height: 150 });
+    const qrDiv = document.getElementById("qrcode");
+    if(qrDiv.innerHTML === "") {
+        new QRCode(qrDiv, { text: mioID, width: 150, height: 150 });
     }
 }
 
@@ -83,5 +84,3 @@ function invia() {
     salvaEVisualizza(chatAttiva, input.value, 'io');
     input.value = "";
 }
-
-document.getElementById("msg-input").addEventListener("keypress", (e) => { if (e.key === "Enter") invia(); });
