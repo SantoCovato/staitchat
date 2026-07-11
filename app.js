@@ -92,29 +92,36 @@ function inizializzaReteP2P(peerId) {
         correctLevel : QRCode.CorrectLevel.M
     });
 
-    logStatoSistema("Protocollo P2P Puro online. Pronto.");
+    logStatoSistema("Protocollo P2P Puro online. Tentativo di registrazione nodo...");
 
-    peer = new Peer(peerId, {
-        config: configurazioneIceWebRTC,
-        debug: 1
-    });
+    try {
+        peer = new Peer(peerId, {
+            config: configurazioneIceWebRTC,
+            debug: 3 // Massimo livello di debug in console
+        });
 
-    peer.on('open', () => {
-        logStatoSistema("Dispositivo registrato sulla rete mesh.");
-    });
+        peer.on('open', (id) => {
+            logStatoSistema("Dispositivo registrato sulla rete mesh.");
+        });
 
-    peer.on('error', async (err) => {
-        console.log("PeerJS Error:", err.type);
-        if (err.type === 'unavailable-id' || err.type === 'id-taken') {
-            miaChiavePubblicaEsadecimale = await generatIDCasualeAlternativo();
-            localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
-            setTimeout(() => { location.reload(); }, 1000);
-        }
-    });
+        peer.on('error', async (err) => {
+            console.error("PeerJS Error Critico:", err);
+            logStatoSistema(`[ERRORE DI RETE] Tipo: ${err.type}. Dettaglio: ${err.message}`);
+            
+            if (err.type === 'unavailable-id' || err.type === 'id-taken') {
+                miaChiavePubblicaEsadecimale = await generatIDCasualeAlternativo();
+                localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
+                setTimeout(() => { location.reload(); }, 1000);
+            }
+        });
 
-    peer.on('connection', (conn) => {
-        gestisciConnessioneEntrante(conn);
-    });
+        peer.on('connection', (conn) => {
+            gestisciConnessioneEntrante(conn);
+        });
+
+    } catch (error) {
+        logStatoSistema(`[ERRORE FATALE] Impossibile istanziare WebRTC: ${error.message}`);
+    }
 }
 
 function gestisciConnessioneEntrante(conn) {
