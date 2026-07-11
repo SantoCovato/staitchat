@@ -6,16 +6,14 @@
 </head>
 <body>
     <h2 id="my-id">Inizializzazione...</h2>
-    
     <input type="text" id="target-id" placeholder="ID del destinatario">
     <button onclick="connetti()">Connetti</button>
-    
     <div id="status">Stato: Disconnesso</div>
     <div id="messages" style="height:200px; border:1px solid #000; overflow-y:scroll; margin: 10px 0;"></div>
-    
     <input type="text" id="msg-input" placeholder="Messaggio...">
     <button onclick="invia()">Invia</button>
 
+    <!-- Usiamo la versione più recente -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="app.js"></script>
 </body>
