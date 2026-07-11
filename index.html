@@ -3,17 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <title>STAIT P2P</title>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 20px auto; padding: 10px; }
+        #messages { height: 250px; border: 1px solid #ccc; padding: 10px; margin: 10px 0; overflow-y: scroll; background: #fafafa; }
+        .msg-io { color: #007bff; text-align: right; margin-bottom: 5px; }
+        .msg-lui { color: #28a745; text-align: left; margin-bottom: 5px; }
+        input { padding: 8px; width: 65%; }
+        button { padding: 8px; cursor: pointer; }
+    </style>
 </head>
 <body>
     <h2 id="my-id">Inizializzazione...</h2>
-    <input type="text" id="target-id" placeholder="ID del destinatario">
+    <input type="text" id="target-id" placeholder="ID destinatario">
     <button onclick="connetti()">Connetti</button>
     <div id="status">Stato: Disconnesso</div>
-    <div id="messages" style="height:200px; border:1px solid #000; overflow-y:scroll; margin: 10px 0;"></div>
-    <input type="text" id="msg-input" placeholder="Messaggio...">
+    <div id="messages"></div>
+    <input type="text" id="msg-input" placeholder="Scrivi un messaggio...">
     <button onclick="invia()">Invia</button>
 
-    <!-- Usiamo la versione più recente -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="app.js"></script>
 </body>
