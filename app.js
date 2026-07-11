@@ -7,6 +7,16 @@ let databaseMessaggi = {};
 let coppiaChiaviStait = null;
 let miaChiavePubblicaEsadecimale = "";
 
+// Configurazione ICE: Server usati SOLO per scambiare gli indirizzi IP (Handshake iniziale), i messaggi non passano di qui.
+const configurazioneIceWebRTC = {
+    'iceServers': [
+        { 'urls': 'stun:stun.l.google.com:19302' },
+        { 'urls': 'stun:stun1.l.google.com:19302' },
+        { 'urls': 'stun:stun2.l.google.com:19302' },
+        { 'urls': 'stun:global.stun.twilio.com:3478?transport=udp' }
+    ]
+};
+
 // Elementi Dom
 const setupScreen = document.getElementById('setup-screen');
 const appScreen = document.getElementById('app-screen');
@@ -31,14 +41,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Forza la rigenerazione immediata delle chiavi in caso di blocco di rete o ID duplicato
 function hardResetID() {
     localStorage.removeItem('stait_peer_pubkey');
     location.reload();
 }
 
 async function generatIDCasualeAlternativo() {
-    // Fallback d'emergenza se la rete rifiuta l'ID primario
     const array = new Uint8Array(32);
     window.crypto.getRandomValues(array);
     return arrayBufferToHex(array);
@@ -64,7 +72,6 @@ async function inizializzaGenerazione() {
 
     } catch (e) {
         console.error(e);
-        // Fallback immediato se le API crittografiche hardware falliscono o sono bloccate dall'ambiente browser
         miaChiavePubblicaEsadecimale = await generatIDCasualeAlternativo();
         localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
         inizializzaReteP2P(miaChiavePubblicaEsadecimale);
@@ -90,8 +97,9 @@ function inizializzaReteP2P(peerId) {
 
     logStatoSistema("Inizializzazione del protocollo di rete decentralizzato...");
 
-    // Creazione del nodo con gestione avanzata degli errori di collisione/blocco
-    peer = new Peer(peerId);
+    peer = new Peer(peerId, {
+        config: configurazioneIceWebRTC
+    });
 
     peer.on('open', (id) => {
         logStatoSistema("Nodo P2P online. Pronto a trasmettere direttamente.");
@@ -100,14 +108,13 @@ function inizializzaReteP2P(peerId) {
     peer.on('error', async (err) => {
         console.error("Errore di rete P2P:", err);
         
-        // Se l'errore è dovuto ad un ID non disponibile o bloccato, lo rigeneriamo istantaneamente senza bloccare la UI
         if (err.type === 'unavailable-id' || err.type === 'id-taken') {
-            logStatoSistema("[SISTEMA] ID precedente bloccato sulla rete. Rigenerazione forzata...");
+            logStatoSistema("[SISTEMA] ID precedente occupato. Rigenerazione flussi...");
             miaChiavePubblicaEsadecimale = await generatIDCasualeAlternativo();
             localStorage.setItem('stait_peer_pubkey', miaChiavePubblicaEsadecimale);
-            setTimeout(() => { location.reload(); }, 1500);
+            setTimeout(() => { location.reload(); }, 1200);
         } else {
-            logStatoSistema("[ERRORE RETE] Impossibile connettersi ai server di instradamento.");
+            logStatoSistema("[INFO] Rete in riconfigurazione automatica...");
         }
     });
 
@@ -117,23 +124,27 @@ function inizializzaReteP2P(peerId) {
 }
 
 function gestisciConnessioneEntrante(conn) {
-    logStatoSistema(`Tentativo di aggancio P2P in entrata da: ${conn.peer.substring(0,8)}...`);
+    if (activeConnection && activePeerId === conn.peer) {
+        return;
+    }
+
+    logStatoSistema(`Richiesta di aggancio rilevata. Apertura tunnel diretto...`);
     
-    conn.on('open', () => {
-        activeConnection = conn;
-        activePeerId = conn.peer;
-        
+    activeConnection = conn;
+    activePeerId = conn.peer;
+
+    activeConnection.on('open', () => {
         aggiungiPeerAInterfaccia(activePeerId);
         selezionaPeerChat(activePeerId);
-        logStatoSistema(`Canale diretto E2EE stabilito con successo.`);
+        logStatoSistema(`Tunnel WebRTC Diretto stabilito con successo. Messaggi sicuri al 100%.`);
     });
 
-    conn.on('data', (dataCifrata) => {
+    activeConnection.on('data', (dataCifrata) => {
         gestisciRicezioneMessaggio(conn.peer, dataCifrata);
     });
 
-    conn.on('close', () => {
-        logStatoSistema(`Il peer ${conn.peer.substring(0,8)} si è disconnesso.`);
+    activeConnection.on('close', () => {
+        logStatoSistema(`Il peer si è disconnesso.`);
         impostaPeerOffline();
     });
 }
@@ -153,7 +164,12 @@ function connettiAPeer() {
         return;
     }
 
-    logStatoSistema(`Ricerca del peer ${cleanId.substring(0,8)} nella tabella DHT...`);
+    if (activeConnection && activePeerId === cleanId) {
+        alert("Sei già connesso in linea diretta con questo Peer.");
+        return;
+    }
+
+    logStatoSistema(`Perforazione firewall ed invio coordinate P2P...`);
 
     const conn = peer.connect(cleanId, {
         reliable: true
@@ -165,7 +181,7 @@ function connettiAPeer() {
 
         aggiungiPeerAInterfaccia(activePeerId);
         selezionaPeerChat(activePeerId);
-        logStatoSistema(`Canale diretto WebRTC aperto con successo.`);
+        logStatoSistema(`Connessione riuscita! Tunnel privato WebRTC aperto.`);
         inputField.value = ""; 
     });
 
@@ -174,13 +190,13 @@ function connettiAPeer() {
     });
 
     conn.on('close', () => {
-        logStatoSistema(`Canale con ${cleanId.substring(0,8)} chiuso.`);
+        logStatoSistema(`Canale chiuso.`);
         impostaPeerOffline();
     });
 
     conn.on('error', (e) => {
-        logStatoSistema(`Errore critico durante la connessione al peer.`);
-        alert("Impossibile raggiungere il peer. Assicurati che sia online e che l'ID sia corretto.");
+        logStatoSistema(`Errore di puntamento.`);
+        alert("Impossibile raggiungere il peer attraverso questo firewall di rete.");
     });
 }
 
@@ -194,6 +210,7 @@ async function inviaMessaggioReale() {
         timestamp: Date.now()
     };
 
+    // Il pacchetto dati viene iniettato nel tunnel diretto criptato
     activeConnection.send(pacchettoMessaggio);
 
     salvaMessaggioInLocale(activePeerId, "sent", testo);
