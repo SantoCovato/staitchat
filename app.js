@@ -70,7 +70,6 @@ function apriChat(id) {
     document.getElementById('chat-title').innerText = id;
     document.getElementById('chat-area').classList.add('active');
     
-    // Connessione robusta: se non esiste o non è aperta, riprova
     if (!connessioni[id] || !connessioni[id].open) {
         setupConnessione(peer.connect(id, { reliable: true }));
     }
@@ -82,7 +81,8 @@ function apriChat(id) {
     (messaggi[id] || []).forEach(m => {
         const d = formattaGiorno(m.timestamp);
         if (d !== lastDate) { html += `<div class="date-divider">${d}</div>`; lastDate = d; }
-        html += `<div class="msg ${m.tipo}">${m.testo}<span class="msg-time">${formattaData(m.timestamp)}</span></div>`;
+        // Struttura con due span separati per permettere il flexbox space-between
+        html += `<div class="msg ${m.tipo}"><span>${m.testo}</span><span class="msg-time">${formattaData(m.timestamp)}</span></div>`;
     });
     
     container.innerHTML = html;
@@ -104,14 +104,10 @@ function salvaEVisualizza(id, testo, tipo) {
 function invia() {
     const input = document.getElementById('msg-input');
     if (!chatAttiva || !input.value) return;
-    
-    // Verifica che la connessione sia pronta
     if (connessioni[chatAttiva] && connessioni[chatAttiva].open) {
         connessioni[chatAttiva].send(input.value);
         salvaEVisualizza(chatAttiva, input.value, 'io');
         input.value = "";
-    } else {
-        alert("Connessione non ancora pronta, riprova tra un secondo.");
     }
 }
 
