@@ -12,6 +12,9 @@ peer.on('open', (id) => {
     renderListaContatti();
 });
 
+function formattaData(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+function formattaGiorno(ts) { return new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short' }); }
+
 function toggleMenu() { document.getElementById('fab-menu').classList.toggle('hidden'); }
 
 function mostraQR() {
@@ -67,8 +70,18 @@ function apriChat(id) {
     document.getElementById('chat-title').innerText = id;
     document.getElementById('chat-area').classList.add('active');
     if (!connessioni[id]) { setupConnessione(peer.connect(id, { reliable: true })); }
+    
     const container = document.getElementById('messages');
-    container.innerHTML = (messaggi[id] || []).map(m => `<div class="msg ${m.tipo}">${m.testo}</div>`).join('');
+    let html = '';
+    let lastDate = '';
+    
+    (messaggi[id] || []).forEach(m => {
+        const d = formattaGiorno(m.timestamp);
+        if (d !== lastDate) { html += `<div class="date-divider">${d}</div>`; lastDate = d; }
+        html += `<div class="msg ${m.tipo}">${m.testo}<span class="msg-time">${formattaData(m.timestamp)}</span></div>`;
+    });
+    
+    container.innerHTML = html;
     container.scrollTop = container.scrollHeight;
 }
 
@@ -79,7 +92,7 @@ function chiudiChat() {
 
 function salvaEVisualizza(id, testo, tipo) {
     if (!messaggi[id]) messaggi[id] = [];
-    messaggi[id].push({testo, tipo});
+    messaggi[id].push({ testo, tipo, timestamp: Date.now() });
     localStorage.setItem('storico-messaggi', JSON.stringify(messaggi));
     if (chatAttiva === id) apriChat(id);
 }
