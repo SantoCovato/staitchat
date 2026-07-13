@@ -6,9 +6,9 @@
     <title>Stait Chat</title>
     <style>
         :root { --bg-dark: #0b141a; --panel-dark: #111b21; --msg-io: #3b82f6; --msg-lui: #202c33; --text-main: #e9edef; --accent: #3b82f6; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; height: 100dvh; display: flex; background-color: var(--bg-dark); color: var(--text-main); overflow: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; height: 100dvh; display: flex; background-color: var(--bg-dark); color: var(--text-main); overflow: hidden;}
 
-        #sidebar { width: 300px; background: var(--panel-dark); border-right: 1px solid #2a3942; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        #sidebar { width: 300px; min-width: 300px; max-width: 300px; background: var(--panel-dark); border-right: 1px solid #2a3942; display: flex; flex-direction: column; position: relative; overflow: hidden; flex: none; }
         .sidebar-header { padding: 15px; border-bottom: 1px solid #2a3942; font-weight: bold; }
         #lista-contatti { overflow-y: auto; flex-grow: 1; padding-bottom: 90px; }
         .contatto { padding: 15px; border-bottom: 1px solid #202c33; cursor: pointer; }
@@ -20,7 +20,7 @@
         .menu-item:hover { background: #2a3942; }
         .hidden { display: none !important; }
 
-        #chat-area { flex-grow: 1; display: flex; flex-direction: column; background: #0b141a; }
+        #chat-area { flex-grow: 1; display: flex; flex-direction: column; background: #0b141a; flex: 1; min-width: 0; }
         .chat-header { display: flex; align-items: center; background: var(--panel-dark); padding: 10px; }
         #back-btn { display: none; background: none; border: none; color: white; font-size: 24px; padding: 0 15px; }
         
