@@ -8,14 +8,14 @@
         :root { --bg-dark: #0b141a; --panel-dark: #111b21; --msg-io: #005c4b; --msg-lui: #202c33; --text-main: #e9edef; --accent: #00a884; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; height: 100vh; display: flex; background-color: var(--bg-dark); color: var(--text-main); overflow: hidden; }
 
-        /* Sidebar: il padre posizionato relativamente */
-        #sidebar { width: 300px; background: var(--panel-dark); border-right: 1px solid #2a3942; display: flex; flex-direction: column; position: relative; }
+        /* Sidebar con posizionamento relativo per il FAB */
+        #sidebar { width: 300px; background: var(--panel-dark); border-right: 1px solid #2a3942; display: flex; flex-direction: column; position: relative; overflow: hidden; }
         .sidebar-header { padding: 15px; border-bottom: 1px solid #2a3942; font-weight: bold; }
         #lista-contatti { overflow-y: auto; flex-grow: 1; }
         .contatto { padding: 15px; border-bottom: 1px solid #202c33; cursor: pointer; }
         .contatto:hover { background: #2a3942; }
 
-        /* FAB: ancorato alla sidebar, non alla lista contatti */
+        /* FAB Posizionato assolutamente dentro la sidebar */
         .fab { position: absolute; bottom: 20px; right: 20px; width: 55px; height: 55px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 30px; cursor: pointer; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         #fab-menu { position: absolute; bottom: 85px; right: 20px; background: var(--panel-dark); border: 1px solid #2a3942; border-radius: 8px; width: 220px; z-index: 99; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .menu-item { padding: 15px; cursor: pointer; border-bottom: 1px solid #2a3942; }
@@ -51,7 +51,6 @@
 <div id="sidebar">
     <div class="sidebar-header">STAIT Chat</div>
     <div id="lista-contatti"></div>
-    
     <button class="fab" onclick="toggleMenu()">+</button>
     <div id="fab-menu" class="hidden">
         <div class="menu-item" onclick="mostraQR()">📷 Il mio ID / QR</div>
