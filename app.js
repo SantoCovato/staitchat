@@ -69,7 +69,11 @@ function apriChat(id) {
     chatAttiva = id;
     document.getElementById('chat-title').innerText = id;
     document.getElementById('chat-area').classList.add('active');
-    if (!connessioni[id]) { setupConnessione(peer.connect(id, { reliable: true })); }
+    
+    // Connessione robusta: se non esiste o non è aperta, riprova
+    if (!connessioni[id] || !connessioni[id].open) {
+        setupConnessione(peer.connect(id, { reliable: true }));
+    }
     
     const container = document.getElementById('messages');
     let html = '';
@@ -100,9 +104,15 @@ function salvaEVisualizza(id, testo, tipo) {
 function invia() {
     const input = document.getElementById('msg-input');
     if (!chatAttiva || !input.value) return;
-    connessioni[chatAttiva].send(input.value);
-    salvaEVisualizza(chatAttiva, input.value, 'io');
-    input.value = "";
+    
+    // Verifica che la connessione sia pronta
+    if (connessioni[chatAttiva] && connessioni[chatAttiva].open) {
+        connessioni[chatAttiva].send(input.value);
+        salvaEVisualizza(chatAttiva, input.value, 'io');
+        input.value = "";
+    } else {
+        alert("Connessione non ancora pronta, riprova tra un secondo.");
+    }
 }
 
 document.getElementById("msg-input").addEventListener("keypress", (e) => { if (e.key === "Enter") invia(); });
