@@ -62,7 +62,9 @@
     <div id="chat-area">
         <div class="chat-header">
             <button id="back-btn" onclick="chiudiChat()">←</button>
-            <h3 id="chat-title" style="margin:0; padding-left:10px;">Seleziona una chat</h3>
+            <div id="chat-title" style="margin:0; padding-left:10px; display:flex; align-items:center; flex-grow:1;"></div>
+            <button onclick="inviaInvitoChiamata(false)" style="background:none; border:none; color:white; font-size:20px; cursor:pointer; margin-right:10px;">📞</button>
+            <button onclick="inviaInvitoChiamata(true)" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">📹</button>
         </div>
         <div id="messages"></div>
         <div class="input-zone">
@@ -71,7 +73,6 @@
         </div>
     </div>
 
-    <!-- Modale Profilo -->
     <div id="profile-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Il tuo profilo</h3>
@@ -85,7 +86,6 @@
         </div>
     </div>
 
-    <!-- Modali QR e Aggiungi -->
     <div id="qr-modal" class="modal hidden">
         <div class="modal-content">
             <div id="qrcode"></div>
@@ -99,6 +99,21 @@
             <h3>Nuovo Contatto</h3>
             <input type="text" id="target-id-input" placeholder="ID dell'amico...">
             <button onclick="confermaAggiungi()" class="btn" style="background: var(--accent); color:white;">Aggiungi</button>
+        </div>
+    </div>
+
+    <div id="call-modal" class="modal hidden">
+        <div class="modal-content" style="max-width:600px;">
+            <video id="remote-video" autoplay playsinline style="width:100%; background:black;"></video>
+            <video id="my-video" autoplay playsinline muted style="width:100px; position:absolute; bottom:100px; right:30px; border:2px solid white;"></video>
+            <br><button class="btn" style="background:red; color:white;" onclick="chiudiChiamata()">Termina</button>
+        </div>
+    </div>
+    <div id="incoming-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Chiamata in arrivo</h3>
+            <button class="btn" onclick="accettaChiamata()" style="background:green; color:white;">Rispondi</button> 
+            <button class="btn" onclick="rifiutaChiamata()" style="background:red; color:white;">Rifiuta</button>
         </div>
     </div>
 
