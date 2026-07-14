@@ -11,6 +11,10 @@ let isVideoCall = false;
 
 const peer = new Peer(mioID, { host: '0.peerjs.com', port: 443, secure: true, key: 'peerjs' });
 
+function ottieniStream(video) {
+    return navigator.mediaDevices.getUserMedia({ video: video, audio: true });
+}
+
 window.addEventListener('load', () => {
     const pPic = document.getElementById('my-profile-pic');
     if (pPic && mioProfilo.foto) pPic.src = mioProfilo.foto;
@@ -99,7 +103,7 @@ function setupConnessione(conn) {
             isVideoCall = data.video;
             document.getElementById('incoming-modal').classList.remove('hidden');
         } else if (data.tipo === 'risposta-accetta') {
-            navigator.mediaDevices.getUserMedia({ video: isVideoCall, audio: true }).then(stream => {
+            ottieniStream(isVideoCall).then(stream => {
                 document.getElementById('my-video').srcObject = stream;
                 const call = peer.call(conn.peer, stream);
                 gestisciCall(call);
@@ -194,10 +198,9 @@ function inviaInvitoChiamata(conVideo) {
 
 function accettaChiamata() {
     document.getElementById('incoming-modal').classList.add('hidden');
-    navigator.mediaDevices.getUserMedia({ video: isVideoCall, audio: true }).then(stream => {
+    ottieniStream(isVideoCall).then(stream => {
         document.getElementById('my-video').srcObject = stream;
         connessioni[pendingCaller].send({ tipo: 'risposta-accetta' });
-        document.getElementById('call-modal').classList.remove('hidden');
     });
 }
 
@@ -224,14 +227,15 @@ function chiudiChiamataUI() {
 
 peer.on('call', (call) => {
     currentCall = call;
-    navigator.mediaDevices.getUserMedia({ video: isVideoCall, audio: true }).then(stream => {
+    ottieniStream(isVideoCall).then(stream => {
         document.getElementById('my-video').srcObject = stream;
         call.answer(stream);
-        call.on('stream', (remoteStream) => {
-            document.getElementById('remote-video').srcObject = remoteStream;
-            document.getElementById('call-modal').classList.remove('hidden');
-        });
     });
+    call.on('stream', (remoteStream) => {
+        document.getElementById('remote-video').srcObject = remoteStream;
+        document.getElementById('call-modal').classList.remove('hidden');
+    });
+    call.on('close', () => chiudiChiamataUI());
 });
 
 function gestisciCall(call) {
@@ -240,6 +244,7 @@ function gestisciCall(call) {
         document.getElementById('remote-video').srcObject = remoteStream;
         document.getElementById('call-modal').classList.remove('hidden');
     });
+    call.on('close', () => chiudiChiamataUI());
 }
 
 document.getElementById("msg-input").addEventListener("keypress", (e) => { if (e.key === "Enter") invia(); });
