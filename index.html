@@ -35,12 +35,6 @@
         .btn { border-radius: 8px; border: none; padding: 10px; cursor: pointer; }
         #qrcode { background: white; padding: 10px; display: inline-block; border-radius: 8px; }
         .modal-content input { width: 100%; margin-bottom: 15px; box-sizing: border-box; }
-        
-        #call-modal .modal-content { background: #000; width: 90%; max-width: 700px; padding: 0; overflow: hidden; border: 1px solid #333; }
-        #remote-video { width: 100%; height: 400px; background: #111; object-fit: cover; }
-        #my-video { width: 120px; height: 120px; position: absolute; bottom: 80px; right: 20px; border: 2px solid white; border-radius: 8px; }
-        .call-btn-zone { padding: 20px; background: #111; display: flex; justify-content: center; }
-
         @media (max-width: 768px) {
             #sidebar { width: 100%; }
             #chat-area { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 100; }
@@ -50,6 +44,7 @@
     </style>
 </head>
 <body>
+
     <div id="sidebar">
         <div class="sidebar-header">
             <img id="my-profile-pic" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238696a0'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3C/svg%3E" 
@@ -67,9 +62,7 @@
     <div id="chat-area">
         <div class="chat-header">
             <button id="back-btn" onclick="chiudiChat()">←</button>
-            <div id="chat-title" style="margin:0; padding-left:10px; display:flex; align-items:center; flex-grow:1;"></div>
-            <button onclick="inviaInvitoChiamata(false)" style="background:none; border:none; color:white; font-size:20px; cursor:pointer; margin-right:10px;">📞</button>
-            <button onclick="inviaInvitoChiamata(true)" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">📹</button>
+            <h3 id="chat-title" style="margin:0; padding-left:10px;">Seleziona una chat</h3>
         </div>
         <div id="messages"></div>
         <div class="input-zone">
@@ -78,6 +71,7 @@
         </div>
     </div>
 
+    <!-- Modale Profilo -->
     <div id="profile-modal" class="modal hidden">
         <div class="modal-content">
             <h3>Il tuo profilo</h3>
@@ -91,6 +85,7 @@
         </div>
     </div>
 
+    <!-- Modali QR e Aggiungi -->
     <div id="qr-modal" class="modal hidden">
         <div class="modal-content">
             <div id="qrcode"></div>
@@ -104,25 +99,6 @@
             <h3>Nuovo Contatto</h3>
             <input type="text" id="target-id-input" placeholder="ID dell'amico...">
             <button onclick="confermaAggiungi()" class="btn" style="background: var(--accent); color:white;">Aggiungi</button>
-        </div>
-    </div>
-
-    <div id="call-modal" class="modal hidden">
-        <div class="modal-content">
-            <div style="position:relative;">
-                <video id="remote-video" autoplay playsinline></video>
-                <video id="my-video" autoplay playsinline muted></video>
-            </div>
-            <div class="call-btn-zone">
-                <button class="btn" style="background:red; color:white; width:100px;" onclick="chiudiChiamata()">Termina</button>
-            </div>
-        </div>
-    </div>
-    <div id="incoming-modal" class="modal hidden">
-        <div class="modal-content">
-            <h3>Chiamata in arrivo</h3>
-            <button class="btn" onclick="accettaChiamata()" style="background:green; color:white;">Rispondi</button> 
-            <button class="btn" onclick="rifiutaChiamata()" style="background:red; color:white;">Rifiuta</button>
         </div>
     </div>
 
