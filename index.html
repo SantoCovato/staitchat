@@ -10,6 +10,7 @@
 
         #sidebar { width: 300px; min-width: 300px; max-width: 300px; background: var(--panel-dark); border-right: 1px solid #2a3942; display: flex; flex-direction: column; position: relative; overflow: hidden; flex: none; }
         .sidebar-header { padding: 15px; border-bottom: 1px solid #2a3942; font-weight: bold; }
+        #my-profile-pic {padding-left: 140px;}
         #lista-contatti { overflow-y: auto; flex-grow: 1; padding-bottom: 90px; }
         .contatto { padding: 20px; border-bottom: 1px solid #202c33; cursor: pointer; }
         .contatto:hover { background: #2a3942; }
@@ -56,7 +57,10 @@
 <body>
 
 <div id="sidebar">
-    <div class="sidebar-header">Stait Chat</div>
+    <div class="sidebar-header" style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="apriProfilo()">
+        <span>Stait Chat</span>
+        <img id="my-profile-pic" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238696a0'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3C/svg%3E" style="width: 40px; height: 40px; border-radius: 50%;"> 
+    </div>
     <div id="lista-contatti"></div>
     <button class="fab" onclick="toggleMenu()">+</button>
     <div id="fab-menu" class="hidden">
@@ -93,6 +97,19 @@
             <button onclick="document.getElementById('add-modal').classList.add('hidden')" class="btn">Annulla</button>
             <button onclick="confermaAggiungi()" class="btn" style="background: var(--accent); color:white;">Aggiungi</button>
         </div>
+    </div>
+</div>
+
+<div id="profile-modal" class="modal hidden">
+    <div class="modal-content">
+        <h3>Il tuo profilo</h3>
+        <!-- L'input è nascosto, cliccando sull'immagine lo richiamiamo -->
+        <input type="file" id="file-input" style="display:none" onchange="previewFile()" accept="image/*">
+        <img id="edit-pic" src="" style="width: 100px; height: 100px; border-radius: 50%; cursor: pointer; object-fit: cover;" onclick="document.getElementById('file-input').click()">
+        <p style="font-size: 0.8rem; color: #8696a0;">Clicca la foto per cambiarla</p>
+        
+        <input type="text" id="edit-name" placeholder="Il tuo nome" style="margin-top:15px;">
+        <button onclick="salvaProfilo()" class="btn" style="background:var(--accent); color:white; width: 100%;">Salva</button>
     </div>
 </div>
 
