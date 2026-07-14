@@ -1,16 +1,10 @@
 let mioID = localStorage.getItem('mio-peer-id');
 let contatti = JSON.parse(localStorage.getItem('contatti') || '[]');
 let messaggi = JSON.parse(localStorage.getItem('storico-messaggi') || '{}');
-let connessioni = {}; 
+let connessioni = {};
 let chatAttiva = null;
-let mioProfilo = JSON.parse(localStorage.getItem('profilo-mio') || '{"nome":"Utente", "foto":""}');
 
 const peer = new Peer(mioID, { host: '0.peerjs.com', port: 443, secure: true, key: 'peerjs' });
-
-window.addEventListener('load', () => {
-    const pPic = document.getElementById('my-profile-pic');
-    if (pPic && mioProfilo.foto) pPic.src = mioProfilo.foto;
-});
 
 peer.on('open', (id) => {
     if (!mioID) { localStorage.setItem('mio-peer-id', id); mioID = id; }
@@ -18,48 +12,25 @@ peer.on('open', (id) => {
     renderListaContatti();
 });
 
-function formattaData(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
-function formattaGiorno(ts) { return new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short' }); }
-
-function toggleMenu() { document.getElementById('fab-menu').classList.toggle('hidden'); }
-
-function apriProfilo() {
-    document.getElementById('edit-name').value = mioProfilo.nome;
-    document.getElementById('edit-pic').src = mioProfilo.foto || document.getElementById('my-profile-pic').src;
-    document.getElementById('profile-modal').classList.remove('hidden');
+function formattaData(ts) {
+    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function previewFile() {
-    const file = document.getElementById('file-input').files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => { 
-        document.getElementById('edit-pic').src = e.target.result; 
-        mioProfilo.foto = e.target.result;
-    };
-    reader.readAsDataURL(file);
+function formattaGiorno(ts) {
+    return new Date(ts).toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
 
-function salvaProfilo() {
-    mioProfilo.nome = document.getElementById('edit-name').value;
-    localStorage.setItem('profilo-mio', JSON.stringify(mioProfilo));
-    document.getElementById('my-profile-pic').src = mioProfilo.foto;
-    document.getElementById('profile-modal').classList.add('hidden');
-    // Aggiorniamo il profilo verso tutte le connessioni attive
-    Object.values(connessioni).forEach(conn => inviaProfilo(conn));
-}
-
-function inviaProfilo(conn) {
-    if (conn.open) {
-        conn.send({ tipo: 'info-profilo', profilo: mioProfilo });
-    }
+function toggleMenu() {
+    document.getElementById('fab-menu').classList.toggle('hidden');
 }
 
 function mostraQR() {
     toggleMenu();
     document.getElementById('qr-modal').classList.remove('hidden');
     const qrDiv = document.getElementById("qrcode");
-    if(qrDiv.innerHTML === "") { new QRCode(qrDiv, { text: mioID, width: 150, height: 150 }); }
+    if (qrDiv.innerHTML === "") {
+        new QRCode(qrDiv, { text: mioID, width: 150, height: 150 });
+    }
 }
 
 function promptAggiungi() {
@@ -92,33 +63,16 @@ function salvaContatto(id) {
 
 function setupConnessione(conn) {
     connessioni[conn.peer] = conn;
-    
-    conn.on('open', () => { inviaProfilo(conn); });
-
     conn.on('data', (data) => {
-        if (data && data.tipo === 'info-profilo') {
-            localStorage.setItem(`profilo-${conn.peer}`, JSON.stringify(data.profilo));
-            renderListaContatti();
-        } else {
-            salvaEVisualizza(conn.peer, data, 'lui');
-        }
+        salvaEVisualizza(conn.peer, data, 'lui');
     });
 }
 
 function renderListaContatti() {
     const list = document.getElementById('lista-contatti');
     list.innerHTML = '';
-    const svgDefault = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238696a0'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3C/svg%3E";
-    
     contatti.forEach(id => {
-        const datiProfilo = JSON.parse(localStorage.getItem(`profilo-${id}`) || '{"foto":""}');
-        const foto = datiProfilo.foto || svgDefault;
-        
-        list.innerHTML += `
-            <div class="contatto" onclick="apriChat('${id}')" style="display:flex; align-items:center; gap:10px;">
-                <img src="${foto}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
-                ${id}
-            </div>`;
+        list.innerHTML += `<div class="contatto" onclick="apriChat('${id}')">${id}</div>`;
     });
 }
 
@@ -126,21 +80,24 @@ function apriChat(id) {
     chatAttiva = id;
     document.getElementById('chat-title').innerText = id;
     document.getElementById('chat-area').classList.add('active');
-    
+
     if (!connessioni[id] || !connessioni[id].open) {
         setupConnessione(peer.connect(id, { reliable: true }));
     }
-    
+
     const container = document.getElementById('messages');
     let html = '';
     let lastDate = '';
-    
+
     (messaggi[id] || []).forEach(m => {
         const d = formattaGiorno(m.timestamp);
-        if (d !== lastDate) { html += `<div class="date-divider">${d}</div>`; lastDate = d; }
+        if (d !== lastDate) {
+            html += `<div class="date-divider">${d}</div>`;
+            lastDate = d;
+        }
         html += `<div class="msg ${m.tipo}"><span>${m.testo}</span><span class="msg-time">${formattaData(m.timestamp)}</span></div>`;
     });
-    
+
     container.innerHTML = html;
     container.scrollTop = container.scrollHeight;
 }
@@ -167,4 +124,6 @@ function invia() {
     }
 }
 
-document.getElementById("msg-input").addEventListener("keypress", (e) => { if (e.key === "Enter") invia(); });
+document.getElementById("msg-input").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") invia();
+});
