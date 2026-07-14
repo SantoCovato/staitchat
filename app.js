@@ -89,21 +89,15 @@ function salvaContatto(id) {
 
 function setupConnessione(conn) {
     connessioni[conn.peer] = conn;
-
     conn.on('open', () => inviaProfilo(conn));
-
     conn.on('data', (data) => {
-        // CONTROLLA SE È UN OGGETTO DI SISTEMA (PROFILO)
         if (data && typeof data === 'object' && data.tipo === 'info-profilo') {
             localStorage.setItem(`profilo-${conn.peer}`, JSON.stringify(data.profilo));
             renderListaContatti();
-        } 
-        // ALTRIMENTI È UN MESSAGGIO DI CHAT (STRINGA)
-        else {
+        } else {
             salvaEVisualizza(conn.peer, data, 'lui');
         }
     });
-
     conn.on('close', () => delete connessioni[conn.peer]);
 }
 
@@ -112,11 +106,11 @@ function renderListaContatti() {
     list.innerHTML = '';
     const svgDefault = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238696a0'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3C/svg%3E";
     contatti.forEach(id => {
-        const dati = JSON.parse(localStorage.getItem(`profilo-${id}`) || '{"foto":""}');
+        const dati = JSON.parse(localStorage.getItem(`profilo-${id}`) || '{"nome":"'+id+'", "foto":""}');
         list.innerHTML += `
-            <div class="contatto" onclick="apriChat('${id}')" style="display:flex; align-items:center; gap:10px;">
+            <div class="contatto" onclick="apriChat('${id}')">
                 <img src="${dati.foto || svgDefault}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
-                ${id}
+                <span>${dati.nome}</span>
             </div>`;
     });
 }
@@ -125,11 +119,9 @@ function apriChat(id) {
     chatAttiva = id;
     document.getElementById('chat-title').innerText = id;
     document.getElementById('chat-area').classList.add('active');
-
     if (!connessioni[id] || !connessioni[id].open) {
         setupConnessione(peer.connect(id, { reliable: true }));
     }
-
     const container = document.getElementById('messages');
     let html = '';
     let lastDate = '';
@@ -157,13 +149,9 @@ function salvaEVisualizza(id, testo, tipo) {
 function invia() {
     const input = document.getElementById('msg-input');
     if (!chatAttiva || !input.value) return;
-    
-    // Autoriparazione: se la connessione è chiusa, riprova a connetterti
     if (!connessioni[chatAttiva] || !connessioni[chatAttiva].open) {
         setupConnessione(peer.connect(chatAttiva, { reliable: true }));
     }
-    
-    // Breve pausa per permettere la riconnessione, poi invia
     setTimeout(() => {
         if (connessioni[chatAttiva] && connessioni[chatAttiva].open) {
             connessioni[chatAttiva].send(input.value);
