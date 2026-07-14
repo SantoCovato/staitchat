@@ -93,10 +93,13 @@ function setupConnessione(conn) {
     conn.on('open', () => inviaProfilo(conn));
 
     conn.on('data', (data) => {
-        if (data && data.tipo === 'info-profilo') {
+        // CONTROLLA SE È UN OGGETTO DI SISTEMA (PROFILO)
+        if (data && typeof data === 'object' && data.tipo === 'info-profilo') {
             localStorage.setItem(`profilo-${conn.peer}`, JSON.stringify(data.profilo));
             renderListaContatti();
-        } else {
+        } 
+        // ALTRIMENTI È UN MESSAGGIO DI CHAT (STRINGA)
+        else {
             salvaEVisualizza(conn.peer, data, 'lui');
         }
     });
