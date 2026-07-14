@@ -117,11 +117,31 @@ function renderListaContatti() {
 
 function apriChat(id) {
     chatAttiva = id;
-    document.getElementById('chat-title').innerText = id;
+    
+    // Recuperiamo i dati del profilo per il titolo
+    const dati = JSON.parse(localStorage.getItem(`profilo-${id}`) || '{"nome":"'+id+'", "foto":""}');
+    
+    // Creiamo il nuovo header con foto, nome e ID
+    const chatTitleElement = document.getElementById('chat-title');
+    chatTitleElement.style.display = "flex";
+    chatTitleElement.style.alignItems = "center";
+    chatTitleElement.style.gap = "10px";
+    
+    chatTitleElement.innerHTML = `
+        <img src="${dati.foto || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238696a0'%3E%3Ccircle cx='12' cy='12' r='12'/%3E%3C/svg%3E"}" 
+             style="width:35px; height:35px; border-radius:50%; object-fit:cover;">
+        <div style="display:flex; flex-direction:column; line-height: 1.2;">
+            <span>${dati.nome}</span>
+            <span style="font-size: 0.7rem; color: #8696a0; font-weight: normal;">ID: ${id}</span>
+        </div>
+    `;
+
     document.getElementById('chat-area').classList.add('active');
+    
     if (!connessioni[id] || !connessioni[id].open) {
         setupConnessione(peer.connect(id, { reliable: true }));
     }
+    
     const container = document.getElementById('messages');
     let html = '';
     let lastDate = '';
