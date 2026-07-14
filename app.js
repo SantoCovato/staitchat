@@ -94,17 +94,19 @@ function setupConnessione(conn) {
     connessioni[conn.peer] = conn;
     conn.on('open', () => inviaProfilo(conn));
     conn.on('data', (data) => {
-        if (data && typeof data === 'object' && data.tipo === 'invito-chiamata') {
+        if (data.tipo === 'invito-chiamata') {
             pendingCaller = conn.peer; 
             isVideoCall = data.video;
             document.getElementById('incoming-modal').classList.remove('hidden');
-        } else if (data && typeof data === 'object' && data.tipo === 'risposta-accetta') {
+        } else if (data.tipo === 'risposta-accetta') {
             navigator.mediaDevices.getUserMedia({ video: isVideoCall, audio: true }).then(stream => {
                 document.getElementById('my-video').srcObject = stream;
                 const call = peer.call(conn.peer, stream);
                 gestisciCall(call);
             });
-        } else if (data && typeof data === 'object' && data.tipo === 'info-profilo') {
+        } else if (data.tipo === 'chiudi-chiamata') {
+            chiudiChiamataUI();
+        } else if (data.tipo === 'info-profilo') {
             localStorage.setItem(`profilo-${conn.peer}`, JSON.stringify(data.profilo));
             renderListaContatti();
         } else {
@@ -183,6 +185,10 @@ function inviaInvitoChiamata(conVideo) {
     if (connessioni[chatAttiva]) {
         isVideoCall = conVideo;
         connessioni[chatAttiva].send({ tipo: 'invito-chiamata', video: conVideo });
+        const btn = document.getElementById('chat-title');
+        const vecchioTesto = btn.innerHTML;
+        btn.innerText = "Chiamata in corso...";
+        setTimeout(() => btn.innerHTML = vecchioTesto, 3000);
     }
 }
 
@@ -201,10 +207,19 @@ function rifiutaChiamata() {
 }
 
 function chiudiChiamata() {
-    if (currentCall) currentCall.close();
+    if (connessioni[chatAttiva]) connessioni[chatAttiva].send({ tipo: 'chiudi-chiamata' });
+    chiudiChiamataUI();
+}
+
+function chiudiChiamataUI() {
+    if (currentCall) { currentCall.close(); currentCall = null; }
     document.getElementById('call-modal').classList.add('hidden');
-    const stream = document.getElementById('my-video').srcObject;
-    if (stream) stream.getTracks().forEach(t => t.stop());
+    document.getElementById('incoming-modal').classList.add('hidden');
+    const myVideo = document.getElementById('my-video');
+    if (myVideo.srcObject) {
+        myVideo.srcObject.getTracks().forEach(track => track.stop());
+        myVideo.srcObject = null;
+    }
 }
 
 peer.on('call', (call) => {
